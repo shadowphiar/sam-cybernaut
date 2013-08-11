@@ -1,0 +1,8 @@
+; table for calculating left/right volume of mono sound effects in stereo pan 
+fx_position: equ FOR 16
+    fx_volume: equ FOR 16
+            @L: equ fx_volume * ((15-fx_position)**(0.5) / (15**(0.5))) 
+            @R: equ fx_volume * ((   fx_position)**(0.5) / (15**(0.5))) 
+            db  @L | (@R << 4)
+    NEXT fx_volume
+next fx_position

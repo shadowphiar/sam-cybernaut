@@ -1,0 +1,45 @@
+MAINMENU:
+print "MAIN MENU", $
+                di
+
+                xor a
+                ld (NEXTDISPLAYSCREEN),a    ; frame interrupt shouldn't switch VMPR on us until we're doing animations
+
+                ld a,SCREENPAGE0+96
+                ld (DISPLAYSCREEN),a
+
+ 
+                ld a,BORDERSCREENOFF
+                out (BORDER),a
+                LD   A,SCREENPAGESPECIAL
+                out (HMPR),a
+
+                or 96
+                out (vmpr),a
+
+                ld sp,HMEM_STACK_FRAME
+
+                ld a,MUSIC.maaora.gzPAGE
+                ld hl,MUSIC.maaora.gz
+                call DECODEMUSIC
+                call MUSIC_GOTO_CUSTOM
+
+                ld a, LOGOPAGE
+                ld hl, LOGOADDR
+
+                call DECODEGZSCREEN
+
+    
+
+                ld a,SCREENPAGE0
+                call COPY_THIS_SCREEN_ONCE
+                
+                ld a,SCREENPAGE0
+                out (hmpr),a
+                or 96
+                out (vmpr),a
+
+                jp MAINLOOP
+                
+                
+                

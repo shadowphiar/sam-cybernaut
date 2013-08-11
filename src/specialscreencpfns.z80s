@@ -1,0 +1,302 @@
+; special screen copy functions
+; will be located above "special screen" and usually run from LMPR
+
+        
+
+ORG $-32768
+
+
+; CALLED THROUGH HMPR MARSHALLING
+;       HL    screen address being restored to
+
+RESTORE_BACKGROUND_H:
+; to be called with B >= 1
+
+        ld e,l
+        ld d,h
+        res 7,h     
+
+
+
+        
+RESTORE_BACKGROUND_H_LOOP:
+        ld c,255            ; stop the ldi and ldd from changing b ever
+
+Y1: equ FOR 2
+        
+        ldi
+        ldi
+        ld a,(hl)
+        ld (de),a
+        inc h
+        inc d
+        
+        ldd
+        ldd
+        ld a,(hl)
+        ld (de),a
+        inc h
+        inc d
+        
+next Y1        
+        
+        res 7,l
+        res 7,e        
+        inc h
+        inc d
+
+
+Y2: equ FOR 2
+
+
+        dec h
+        dec d
+        ldi
+        ldi
+        ld a,(hl)
+        ld (de),a
+
+        dec h
+        dec d
+        
+        ldd
+        ldd
+        ld a,(hl)
+        ld (de),a       
+next Y2   
+
+        ld a,l
+        add 3-128
+        ld l,a
+
+        dec h
+
+        ld e,l
+        ld d,h
+        set 7,d     
+
+        djnz RESTORE_BACKGROUND_H_LOOP
+
+        jp HMEM_SWITCH_LMEM_DRAW_RETURN
+
+RESTORE_BACKGROUND_V:
+; to be called with B >= 1
+
+        ld e,l
+        ld d,h
+        res 7,h     
+RESTORE_BACKGROUND_V_LOOP:
+        ld c,255            ; stop the ldi and ldd from changing b ever
+        
+Y1: equ FOR 2
+        
+        ldi
+        ldi
+        ld a,(hl)
+        ld (de),a
+        inc h
+        inc d
+        
+        ldd
+        ldd
+        ld a,(hl)
+        ld (de),a
+        inc h
+        inc d
+        
+next Y1        
+        
+        res 7,l
+        res 7,e        
+        inc h
+        inc d
+
+
+Y2: equ FOR 2
+
+
+        dec h
+        dec d
+        ldi
+        ldi
+        ld a,(hl)
+        ld (de),a
+
+        dec h
+        dec d
+        
+        ldd
+        ldd
+        ld a,(hl)
+        ld (de),a       
+next Y2   
+
+        set 7,l
+        
+        inc h
+        inc h
+        inc h
+        
+        ld e,l
+        ld d,h
+        set 7,d
+        
+        djnz RESTORE_BACKGROUND_V_LOOP
+
+        jp HMEM_SWITCH_LMEM_DRAW_RETURN
+
+
+; called in LMEM through HMPR marsalling
+DRAW_TRANSPARENT:
+; call with HL = address in screen memory to start upacking
+;           BC = data to fetch from 
+
+        ld a,(bc)
+        inc bc
+        ld e,a
+        inc a
+        jr z, transparent_block
+
+        and 0x0f
+        jr z, r_transparent
+        
+        ld a,e
+        cp 0xf0
+        jr nc, l_transparent
+        
+        ld (hl),a
+        inc hl
+        jr DRAW_TRANSPARENT
+        
+        
+l_transparent:
+        and 0x0f
+        ld e,a
+
+        ld a,(hl)
+        and 0xf0
+        or e
+        ld (hl),a
+        inc hl
+        jr DRAW_TRANSPARENT
+
+
+r_transparent:
+        ld a,e
+        and 0xf0
+        ld e,a
+
+        ld a,(hl)
+        and 0x0f
+        or e
+        ld (hl),a
+        inc hl
+        jr DRAW_TRANSPARENT
+
+
+
+transparent_block:
+        ld a,(bc)
+        inc bc
+        ld e,a
+
+        inc a
+        jr nz, not_the_end_transparent
+        
+        ld a,(bc)
+        inc a
+        jp z, HMEM_SWITCH_LMEM_DRAW_RETURN
+        ; END MARKER
+        ; go back to the calling routine, via HMEM marshalling
+
+not_the_end_transparent:
+
+        ld d,0
+        
+        dec e
+        inc de
+        
+        add hl,de
+        
+        jr DRAW_TRANSPARENT
+
+
+
+
+
+org $+32768
+COPY_THIS_SCREEN_ONCE:
+; called in HMEM with interrupts off
+; copy the screen into th screen at page A
+
+		ld b,a
+		in a,(LMPR)
+		ld (COPY_THIS_SCREEN_ONCE.LMPRS),a
+		ld a,b
+		or 32
+		out (lmpr),a
+		
+		ld hl,32768
+		ld de,0
+		ld bc, 24576 + 576 ; screen and room for palette line data
+		
+		LDIR
+		
+COPY_THIS_SCREEN_ONCE.LMPRS: equ $+1
+		ld a,00
+		out (LMPR),a
+		ret
+
+
+
+DECODEGZSCREEN:
+    ld de,32768
+
+DECODEGZ:
+
+;; data exists at HL in page A
+;; we are called in HMEM decoding into DE at our own page
+
+;; stack should be somewhere in high section D before calling this function
+
+    ld b,a
+    in a,(lmpr)
+    ld (decodegzscreenlmprs),a
+    
+    ld a,b
+    and 31
+    or 32
+    out (lmpr),a
+        
+
+    call inflate
+    
+decodegzscreenlmprs: equ $+1
+    ld a,00
+    out (lmpr),a
+    ret
+
+
+
+DECODEMUSIC:        ; decode the music file from HL in page A, and put it in musicpage
+print "DECODEMUSIC", $
+    ld de,32768
+    call DECODEGZ
+    
+    ld a,musicpage | 32
+    out (lmpr),a
+    ld bc,max_size_of_loaded_music
+    ld hl,32768
+    ld de,load_music_page_offset
+    ldir
+    ld a,(decodegzscreenlmprs)
+    out (lmpr),a
+    ret
+
+
+INFLATELIB_CONFIG__NO_MEMORY_PAGING: equ 1
+    INCLUDE "../ext/samflatelib.z80s"
+		
+		
+         
+

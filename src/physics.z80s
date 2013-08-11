@@ -1,0 +1,65 @@
+
+
+best_level: db 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PLAYER.X: equ 0
+PLAYER.Xh: equ 1
+PLAYER.Y: equ 2
+PLAYER.Yh: equ 3
+PLAYER.xspeed: equ 4
+PLAYER.xspeedh: equ 5
+PLAYER.yspeed: equ 6
+player.yspeedh: equ 7
+
+
+player.next_extend0: equ 32	; 0
+player.next_extend1: equ 33	; 10(00)(0)
+player.next_extend2: equ 34
+player.next_extend3: equ 35
+player.next_extendEND: equ 36
+
+PLAYER.SCORE0: equ 40       ; binary coded decimal omitting an implied extra zero
+PLAYER.SCORE1: equ 41
+PLAYER.SCORE2: equ 42
+PLAYER.SCORE3: equ 43
+PLAYER.SCOREEND: equ 44       ; space for a 255 end marker after 8 digits of content
+
+
+PLAYER.UP_KEYMASK:  equ 54
+PLAYER.UP_KEYADDR:  equ 55
+PLAYER.DOWN_KEYMASK:equ 56
+PLAYER.DOWN_KEYADDR:equ 57
+PLAYER.LEFT_KEYMASK:equ 58
+PLAYER.LEFT_KEYADDR:equ 59
+PLAYER.RIGHT_KEYMASK:equ 60
+PLAYER.RIGHT_KEYADDR:equ 61
+PLAYER.FIRE_KEYMASK:equ 62
+PLAYER.FIRE_KEYADDR:equ 63
+
+
+
+SIZEOF.PLAYER: equ 64
+
+                ds align 128
+PLAYER_SPACE:	ds 2*SIZEOF.PLAYER
+PLAYER2_SPACE: equ PLAYER_SPACE+SIZEOF.PLAYER

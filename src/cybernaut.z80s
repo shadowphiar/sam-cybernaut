@@ -1,0 +1,753 @@
+				INCLUDE "global.z80s"
+
+
+
+
+				ORG 32768
+				DUMP SCREENPAGESPECIAL + 1, $ \ 16384
+
+                AUTOEXEC
+
+                DI
+                LD A,BORDERSCREENOFF
+                OUT (BORDER),A
+   
+                LD A, SCREENPAGE0 | 96
+                OUT (vmpr),A
+
+                LD A, IM2BYTE
+                LD I,A
+                IM 2
+
+
+; initial setup, copy the screen code routines into their location in screen memory
+; first for the 3 main screens
+
+        		ld a, SCREENPAGE0 | 32
+@copyloop:
+                out (lmpr),a
+        
+                ld bc,SCREENFUNCTIONLEN
+                ld hl,SCREENFUNCTIONORG-16384
+                ld de,SCREENFUNCTIONORG-32768
+                ldir
+
+                ld hl,IM2BYTE*256 -32768
+                ld de,IM2BYTE*256 +1 -32768
+                ld bc,257
+                ld (hl), IM2TARGETBYTE
+                ldir
+
+                add 2
+                cp (1+SCREENPAGETOP) | 32
+                jr c, @copyloop
+
+                LD A,CODEPAGE + 32
+				OUT  (LMPR),A
+                LD   SP,PROGRAM_STACK_FRAME
+
+                JP   LMEM
+
+
+
+				ORG SCREENFUNCTIONORG
+				DUMP SCREENPAGESPECIAL + 1, SCREENFUNCTIONORG \ 16384
+
+STARTOFSCREENFUNCTIONS:
+
+                INC "screenfunctions.z80s"
+
+ENDOFSCREENFUNCTIONS:
+                
+                INCLUDE "specialscreencpfns.z80s"
+
+                assert $ < 65024
+            
+
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+                ORG  0
+                DUMP CODEPAGE,0
+
+
+
+FRAMEINT:
+			; no need to call SWITCH_HMPR for hmpr changes at frameint time
+            ; (unless things are taking so long they might be in screen area!)
+
+                LD (FRAMESPSTORE),SP
+                IN   A,(HMPR)
+                LD (FRAMEHMPRSTORE),A
+
+                LD SP,FRAMEINT_STACK_FRAME
+
+                ; AF' is still AF of background task - if we get a 'nested' line interrupt it would be corrupted!!!
+                EX AF,AF'
+                PUSH AF
+
+	
+                PUSH HL
+                PUSH DE
+                PUSH BC
+                EXX
+                PUSH HL
+                PUSH DE
+                PUSH BC
+                PUSH IY
+                PUSH IX
+                
+                
+NEXTDISPLAYSCREEN:  EQU $+1                  
+                LD A,0
+                OR A
+                JR Z,DISPLAYSCREENOK
+                LD (DISPLAYSCREEN),A
+                XOR A
+                LD (NEXTDISPLAYSCREEN),A
+DISPLAYSCREENOK:               
+
+DISPLAYSCREEN:  EQU $+1                
+                LD A,SCREENPAGE0 + 96
+                OUT (VMPR),A    ; this is the next screen which will be displayed
+                				; that said, the pallete line status is in the current hmem
+;                and 31
+;                out (HMPR),a
+
+                LD HL,57344 + 19
+                
+                LD (LINESETPOINTER),HL
+                DEC L
+                
+                LD A,(HL)
+                LD (LINESETPALETTE),A
+                DEC L
+                LD A,(HL)
+                LD (LINESETINDEX),A
+                DEC L
+                LD A,(HL)
+                OUT (line),A
+                DEC L
+                
+                LD BC,CLUT + 256*16
+                for 16, OUTD
+                
+
+                
+FRAMECLOCK: EQU $+1
+                LD A,00
+                INC A
+                LD (FRAMECLOCK),A
+
+    ;; read all the keyboard inputs into a table
+    ; (avoid any duplicate port reading, which may be confused with mouse interface)
+
+                LD HL,KEYBOARD_TABLE
+        
+        print "KEYBOARD TABLE", KEYBOARD_TABLE
+        
+                LD B,0xfe
+        
+        
+        
+get_keyboard_loop:
+               
+                LD C,0xfe        
+                IN A,(C)
+                AND 0x1f
+                LD E,A
+        
+                LD C,0xf9
+                IN A,(C)
+                AND 0xe0
+                
+                OR E
+                LD (HL),A
+                INC HL
+                
+                LD A,B
+                INC A       ; sets Z if b was already 0xff
+        
+                LD A,B
+                SCF
+                RLA
+                LD B,A
+                
+                JR NZ, get_keyboard_loop
+
+                LD A,96
+                OUT (clut),A
+
+                LD   A,MUSICPAGE
+                OUT  (HMPR),A
+
+                print "SFX", $
+
+sfx_new_fxaddr: EQU $+1
+                LD HL,0000
+
+                LD A,H
+                OR L
+                JR Z, no_new_sfx
+
+                LD C,(HL) ; sfx_length
+                INC HL
+                INC HL
+                INC HL
+				; hl is sfx_addr
+
+
+				LD A,(sfx1_length)
+				OR A
+				JR Z, sfx_store1
+
+				LD B,A
+
+				LD A,(sfx2_length)
+				OR A
+				JR Z, sfx_store2
+				
+				; three potentially active sound effects
+				; newest always gets priority; play over whichever has least time remaining to run
+				
+				CP B
+				JR C, sfx_store2
+				
+
+sfx_store1:
+
+sfx_new_fxstereo: EQU $+1
+                LD A,00
+                AND 0xf0
+                LD (sfx1_stereo),A
+                LD A,C
+                LD (sfx1_length),A
+                LD (sfx1_address),HL
+
+				JR sfx_stored
+
+sfx_store2:
+
+                LD A,(sfx_new_fxstereo)
+                AND 0xf0
+                LD (sfx2_stereo),A
+                LD A,C
+                LD (sfx2_length),A
+                LD (sfx2_address),HL
+
+sfx_stored:
+
+                LD HL,0
+                LD (sfx_new_fxaddr),HL
+                
+                
+no_new_sfx:
+
+
+USING_SFX_TABLE: EQU $+1                
+                LD D,sfxstereo_table/256
+
+
+
+sfx1_length: EQU $+1
+                LD A,00
+                OR A
+                JR Z, sfx1_done
+
+                DEC A
+                LD (sfx1_length),A
+
+
+
+sfx1_address: EQU $+1
+                LD HL,0000
+                
+                LD A,(HL)   ; volume
+                AND 0x0f
+sfx1_stereo: EQU $+1
+                OR 0x00                
+                LD E,A
+                LD A,(DE)
+                LD (SOUNDTABLE + 0),A
+
+                INC HL
+                LD E,(HL)  ; flags
+                
+                LD A,E
+                AND 0x7
+                LD B,A
+                LD A,(SOUNDTABLE + 12)
+                AND 0xf8
+                OR B
+                LD (SOUNDTABLE + 12),A  ; octave
+
+                LD A,(SOUNDTABLE + 15)  ; freq enable
+                AND 0xfe
+                BIT 5,E
+                JR Z, @+no
+                OR 0x1
+@no:            LD (SOUNDTABLE + 15),A  ; freq enable
+
+                LD A,(SOUNDTABLE + 16)  ; freq enable
+                AND 0xfe
+                BIT 4,E
+                JR Z, @+no
+                OR 0x1
+@no:            LD (SOUNDTABLE + 16),A  ; noise enable
+
+                LD A,E
+                RLCA
+                RLCA
+                AND 0x03
+                LD E,A
+                
+                LD A,(SOUNDTABLE + 17)
+                AND 0xfc
+                OR E
+                LD (SOUNDTABLE + 17),A      ; noise colour
+                
+                INC HL
+                LD A,(HL)   ; tone
+                LD (SOUNDTABLE + 6),A
+
+                INC HL
+                LD (sfx1_address),HL
+
+
+sfx1_done:
+
+
+
+sfx2_length: EQU $+1
+                LD A,00
+                OR A
+                JR Z, sfx2_done
+
+                DEC A
+                LD (sfx2_length),A
+
+sfx2_address: EQU $+1
+                LD HL,0000
+                
+                LD A,(HL)   ; volume
+                AND 0x0f
+sfx2_stereo: EQU $+1
+                OR 0x00                
+                LD E,A
+
+                LD A,(DE)
+                LD (SOUNDTABLE + 3),A
+
+                INC HL
+                LD E,(HL)  ; flags
+                
+                LD A,E
+                ADD A
+                ADD A
+                ADD A
+                ADD A
+                AND 0x70
+                LD B,A
+                LD A,(SOUNDTABLE + 13)
+                AND 0x8f
+                OR B
+                LD (SOUNDTABLE + 13),A  ; octave
+
+                LD A,(SOUNDTABLE + 15)  ; freq enable
+                AND 0xf7
+                BIT 5,E
+                JR Z, @+no
+                OR 0x8
+@no:            LD (SOUNDTABLE + 15),A  ; freq enable
+
+                LD A,(SOUNDTABLE + 16)  ; freq enable
+                AND 0xf7
+                BIT 4,E
+                JR Z, @+no
+                OR 0x8
+@no:            LD (SOUNDTABLE + 16),A  ; noise enable
+
+                LD A,E
+                RRA
+                RRA
+                AND 0x30
+                LD E,A
+                
+                LD A,(SOUNDTABLE + 17)
+                AND 0xcf
+                OR E
+                LD (SOUNDTABLE + 17),A      ; noise colour
+                
+                INC HL
+                LD A,(HL)   ; tone
+                LD (SOUNDTABLE + 9),A
+
+                INC HL
+                LD (sfx2_address),HL
+
+			; if sfx1 is now empty, move sfx2 into it (for better use of sound chip channels overloaded with music)
+
+				LD A,(sfx1_length)
+				OR A
+				JR NZ, sfx2_done
+
+				LD A,(sfx2_length)
+				LD (sfx1_length),A
+				LD A,(sfx2_stereo)
+				LD (sfx1_stereo),A
+				LD HL,(sfx2_address)
+				LD (sfx1_address),HL
+				XOR A
+				LD (sfx2_length),A
+
+sfx2_done:
+
+music_new_pattern_set: EQU $+1
+                LD HL,0000
+                LD A,H
+                OR L
+                JR Z, no_new_pattern_set
+
+                CALL RPLAYERDASH
+
+                XOR A
+                LD (music_new_pattern_set),A
+                LD (music_new_pattern_set+1),A
+                JR new_pattern_set
+
+no_new_pattern_set:
+
+is_music_enabled: EQU $+1
+                ld a,00
+                or a
+                CALL nz, PLAYROUTINE
+new_pattern_set:
+
+is_music_softened: EQU $+1
+				LD A,0
+				OR A
+				JR Z, musicnotsoftened
+
+
+                LD D,musicsoft_table/256
+                
+                LD HL,SOUNDTABLE
+   
+   musicchannel: EQU FOR 6
+                LD E,(HL)
+                LD A,(DE)
+                LD (HL),A
+                INC HL
+    next musicchannel            
+                
+                
+musicnotsoftened:
+
+                XOR A
+                OUT (clut),A
+
+
+                ; FRAMEVECTOR should be the last thing we do.
+                ; This means we can arrange for it to be safe for LINE interrupts to occur
+                ; (all screen pointers updated - HMPR value is NOT allowed to change except going via SWITCH_HMPR)
+
+
+
+FRAMEHMPRSTORE: EQU $+1
+                LD A,00
+                OUT  (HMPR),A
+
+
+                ; and just to emphasize that point, we'll enable interrupts here
+                EI
+
+				LD HL,(FRAMEVECTOR)
+				LD A,H
+				OR L
+FRAMEVECTOR: EQU $+1
+				CALL NZ, 0000
+				; do things on frame interrupts. This depends on whether we are in game loop, menu waiting, or whatever
+
+
+                POP IX
+                POP IY
+                POP  BC
+                POP  DE
+                POP  HL
+                EXX
+                POP  BC
+                POP  DE
+                POP  HL
+
+                POP AF
+                EX AF,AF'   ; 
+ 
+
+FRAMESPSTORE:   EQU  $+1
+                LD   SP,0000
+
+                RET
+
+
+
+
+
+
+
+MAINLOOP:
+    ; assume all user input will be handled by FRAMEINT that has been set up
+    ; background loop obeys incoming graphics requests and does nothing else
+
+                ld sp, PROGRAM_STACK_FRAME
+                ei
+
+                ld a,BORDERSCREENON
+                out (BORDER),a
+
+MAINLOOP_LOOP:
+
+last_calculated_frame: equ $+1
+				ld a,00
+				ld (frame_being_drawn),a
+last_drawn_frame: equ $+1
+				sub 00
+
+                ld c,a
+                
+show_timing_info: equ $+1
+                ld a,01
+                or a
+                jr z, @+no_timing_info
+                
+                ld a,c
+                
+				rlca
+				rlca
+				rlca
+				rlca
+				and 0xf0
+
+				out (CLUT),a
+
+@no_timing_info:
+                ld a,c
+                or a
+
+				jr z,MAINLOOP_LOOP
+
+
+
+
+DRAWBUSYLOOP:   
+
+				ld a,(NEXTDISPLAYSCREEN)
+                or a
+                jr z,noDRAWBUSYLOOP
+
+
+		if DEBUG
+                ld a,6*16
+                out (CLUT),a
+                ld a,5*16
+                out (CLUT),a
+		endif
+
+				jr DRAWBUSYLOOP
+
+NODRAWBUSYLOOP:
+				
+               
+WORKSCREEN:     EQU $+1
+                LD A,SCREENPAGE1
+                or 96
+                ld (NEXTDISPLAYSCREEN),A
+                and 31
+                inc a
+                inc a
+                cp SCREENPAGETOP+1
+                jr c,workscreenok
+                ld a,SCREENPAGE0
+workscreenok:   ld (WORKSCREEN),a
+
+
+                ld sp, PROGRAM_STACK_FRAME
+				call SWITCH_HMPR
+
+frame_being_drawn: equ $+1
+				ld a,00
+  				ld (last_drawn_frame),a
+
+EXIT_MAIN_LOOP_VECTOR: equ $+1
+                ld hl,0000
+                ld a,l
+                or h
+                jp z, MAINLOOP_LOOP
+
+				di
+				xor a
+				ld (FRAMEVECTOR),a
+				ld (FRAMEVECTOR+1),a
+
+                call SILENCE
+
+                JP (HL)
+
+
+
+
+MUSIC_GOTO_PATTERN:     ; pattern in A register  (can be called at any time [maintains hl])
+                LD C,A
+
+				LD A,(is_music_enabled)
+				OR A
+				RET Z
+
+                XOR A
+                RL C
+                RLA
+                ADD 128
+                LD B,A
+                LD (music_new_pattern_set), BC
+                RET
+
+MUSIC_GOTO_CUSTOM:
+				LD A,(is_music_enabled)
+				OR A
+				RET Z
+				LD A,128+ (load_music_page_offset/256)
+				LD (music_new_pattern_set+1),A
+				XOR A
+				assert (load_music_page_offset\256) == 0
+				LD (music_new_pattern_set),A
+				RET
+
+
+
+SFX_START:              ; stereo position in A, SFX address in hl
+			
+				LD (sfx_new_fxstereo),A
+
+fx_enabled: EQU $+1
+				LD A,00
+				OR A
+				RET Z
+
+                LD (sfx_new_fxaddr),HL
+          
+                RET
+
+
+SILENCE:        ; (can be called at any time [maintains hl])
+
+                LD BC,511
+                LD D,5
+                XOR A
+
+@loop:          
+                OUT  (C),D
+                DEC B
+                OUT  (C),A
+                INC B
+                DEC D
+                JR NZ,@loop
+                OUT  (C),D
+                DEC B
+                OUT  (C),A
+
+                LD (sfx1_length),A
+                LD (sfx2_length),A
+
+                CALL MUSIC_GOTO_PATTERN
+                RET
+
+LMEM:
+                call SILENCE
+
+                CALL LOAD_CONFIG
+                LD (status_message),HL
+
+                CALL INITCONFIG
+
+				JP MAINMENU
+
+
+KEYBOARD_TABLE:     ds 9
+STATUS_MESSAGE:     dw 0
+
+
+
+                INCLUDE "physics.z80s"
+                INCLUDE "config.z80s"
+                INCLUDE "mainmenu.z80s"
+
+
+
+            DS 32000-$
+
+ds 256
+FRAMEINT_STACK_FRAME: equ $            
+            
+ds 256
+PROGRAM_STACK_FRAME: equ $
+            
+            
+HMEM_STACK_FRAME: equ 65534
+        
+            assert $ <= 32768
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+                ORG 32768
+                DUMP MUSICPAGE,0
+
+temp_space_for_loading_music: 
+
+load_music_page_offset: EQU $-32768
+max_size_of_loaded_music: EQU 20480	
+
+end_of_msuic: EQU temp_space_for_loading_music + max_size_of_loaded_music
+                
+                DEFS end_of_msuic-$; space for other music at 40960
+
+
+
+; disc calls which won't move around even if the size of code changes. Allow hackers to implement atom/trinity layer
+DISKOPS_PAGE: EQU MUSICPAGE
+ 
+LOAD_CONFIG:	
+				JP discop_load_config		;	HL 
+SAVE_CONFIG:	JP discop_save_config		;
+ 
+                
+                INC "../ext/ptplayer.z80s"   ; call RESETPLAYER and PLAYROUTINE
+				INC "discops.z80s"
+
+                assert $ < (65536 - 4*256)
+
+               DEFS align 256
+sfxmono_table:    
+                for 16, DEFB 0x00,0x11,0x22,0x33,0x44,0x55,0x66,0x77,0x88,0x99,0xaa,0xbb,0xcc,0xdd,0xee,0xff
+sfxstereo_table:    
+                MDAT "../_build/stereotable.o"
+
+				assert (0 == ($\256))
+musicsoft_table:
+musicsoft_left: EQU FOR 16
+	@L: EQU (musicsoft_left+1)/2
+    musicsoft_right: EQU FOR 16
+		@R: EQU (musicsoft_right+1)/2
+            DEFB 16*@L + @R
+    NEXT musicsoft_right
+next musicsoft_left
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+                DUMP DATASTARTPAGE,0
+                MDAT "../_build/data.obj"

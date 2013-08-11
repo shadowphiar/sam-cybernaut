@@ -1,0 +1,56 @@
+;; build flags
+
+
+if 0==defined(DEBUG)
+DEBUG:		EQU 0
+endif
+
+if 0==defined(DEMO)
+DEMO:       EQU 0
+endif
+
+
+
+
+;; memory and code configuration
+
+FRAMEINT: equ 0
+
+CODEPAGE:       EQU 2
+MUSICPAGE:      EQU 4
+DATASTARTPAGE:  EQU 6
+
+SCREENPAGE0:    EQU 26
+SCREENPAGE1:    EQU SCREENPAGE0 + 2
+SCREENPAGETOP:  EQU SCREENPAGE1 + 2
+                ; three pages for triple buffering or more for other requirements
+
+SCREENPAGESPECIAL: equ 0
+                ; just to keep the background storage, so platforms can be removed
+                ; does not need to be congruous with the others
+                ; also contains the samflate library (which is a bit too big to go in every screen)
+
+
+
+
+
+
+
+; other useful glabal definitions
+
+USEIX:          EQU 221
+USEIY:          EQU 253
+CLUT:           EQU 248
+LINE:           EQU 249
+STATUS:         EQU 249
+LMPR:           EQU 250
+HMPR:           EQU 251
+VMPR:           EQU 252
+BORDER:         EQU 254
+
+BORDERSCREENON: EQU 8
+if DEBUG
+BORDERSCREENOFF: EQU 8
+else
+BORDERSCREENOFF: EQU 136
+endif

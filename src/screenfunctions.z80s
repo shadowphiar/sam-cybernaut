@@ -1,0 +1,275 @@
+; 
+                INCLUDE "global.z80s"
+
+                ORG 32768 + 24576 + 576 ; screen and room for palette line data
+SCREENFUNCTIONORG: EQU $
+
+
+STARTOFSCREENDATA: EQU 32768
+
+
+;;; FUNCTION: CALL in screen 0, duplicates to screens 2 and 3
+
+DUPLICATESCREENDATA:       
+                di
+                in a,(LMPR)
+                ld (SCREENLMPRSTORE),a
+                ld a,SCREENPAGE1
+                
+nextdupscreenloop:
+                and 31
+                or 32
+                out (LMPR),a
+                
+                ld hl,STARTOFSCREENDATA
+                ld de,STARTOFSCREENDATA - 32768
+                ld bc,ENDOFSCREENDATA - STARTOFSCREENDATA
+                ldir
+                
+                ld hl,0
+                ld (32766),hl
+                
+                and 31
+                inc a
+                inc a
+                cp SCREENPAGETOP+1
+                jr c,nextdupscreenloop
+
+                ld (65534),hl
+
+
+SCREENLMPRSTORE: EQU $+1
+                ld a,00
+                out (LMPR),a
+                ret 
+
+
+
+SWITCH_HMPR:	
+				; at background task time, we must be very careful about changing HMPR
+				; interrupt code is running from HMEM and needs pointers in memory to be up to date
+
+				; NB. we enable interrupts in this routine
+				; as we assume they are already enabled
+				
+				; when are interrupts disabled? presumably never in screen area
+				; but where they are it would be safe just to write HMPR directly 
+				
+
+
+				ld (@new_hmpr), a	
+				in a,(lmpr)
+				ld (@lmpr_store),a
+				
+				; make sure the stack is safe in case of line interrupt
+				; (or frame, I suppose)
+
+				ld (@sp_store),sp
+				ld sp, SWITCH_HMPR_STACK_TOP
+				
+				ld a,(@new_hmpr)
+				or 32
+				out (lmpr),a
+				
+				ld a,(@lmpr_store)
+				ld (@lmpr_store-32768),a
+
+
+
+				; old is in hmem, new in lmem
+				
+				ld (@bc_store-32768),bc
+				ld (@hl_store-32768),hl
+
+				ld hl,(@sp_store)
+				ld (@sp_store-32768),hl
+
+				ld bc, HMPR
+
+
+
+@retry:
+
+				ld hl,(LINESETPOINTER)
+				ld (LINESETPOINTER-32768),hl
+												
+				ld a,(LINESETINDEX)
+				ld (LINESETINDEX-32768),a
+
+				ld a,(LINESETPALETTE)
+				ld (LINESETPALETTE-32768),a
+
+@new_hmpr:		equ $+1
+				ld h,00		
+
+				di ; BEGIN CRITICAL SECTION
+				
+				ld a,(LINESETPOINTER)
+				cp l
+				jr nz, @abortandretry
+
+				out (c),h
+
+				ei ; END CRITICAL SECTION
+				
+
+@lmpr_store:	equ $+1		
+				ld a,00
+				out (lmpr),a
+				
+@sp_store:		equ $+1
+				ld sp,0000
+				
+				
+@hl_store:		equ $+1
+				ld hl,0000
+@bc_store:		equ $+1
+				ld bc,0000
+
+				ret
+
+@abortandretry:	ei
+			
+				jp @retry
+
+
+	
+
+				ds align 257
+IM2TARGET:		
+
+IM2TARGETBYTE: equ $/256				
+IM2TARGETBYTE: equ $\256				
+				
+						     ; INTERRUPT corrupts AF', preserves others
+                               ; (and assumes screen is paged in in high memory...)
+   
+
+                EX   AF,AF'
+                IN   A,(STATUS)
+                RRA
+                JR   C,NOTLINEINT
+LINEINT:
+                push bc
+
+LINESETINDEX:   equ $+2
+                ld bc,clut
+LINESETPALETTE: equ $+1
+                ld a,0
+                out (c),a
+
+LINESETPOINTER: equ $+1                
+                ld bc,57344 + 16
+                ld a,(bc)
+                out (line),a
+                
+                inc a
+                jr z, FINAL_LINEINT
+                                
+                inc bc     
+                ld a,(bc)
+                ld (LINESETINDEX),a
+                inc bc   
+                ld a,(bc)
+                ld (LINESETPALETTE),a
+                inc bc
+                ld (LINESETPOINTER),bc
+
+
+                EX   AF,AF'
+                EI
+                pop bc
+                RET
+                ; the palette line routine is very finely tuned to fit in a single line
+                ; literally to the last t-state!
+                ; the pop bc and ret may stack up it many line changes occur in quick succession, but that's ok
+                  ; note that swapping inc bc for inc c makes no difference, as it's in raster area
+                
+
+FINAL_LINEINT:
+                ld a, SCREENPAGE0 + 96
+                out (VMPR),a
+            
+            
+                pop bc
+                EX   AF,AF'
+                EI
+                RET
+
+
+
+NOTLINEINT:
+                BIT  2,A
+JPFRAMEINT:
+                JR   NZ,NOTFRAMEINT
+
+				in a,(LMPR)
+				ld (LMEM_INTSTORE),a
+				
+                ; put background process's AF on the stack
+                ; so that line interrupts can be enabled and another AF' exchange won't corrupt it
+                ex af,af'
+                push af
+				
+
+				ld a,CODEPAGE | 32
+				out (lmpr),a
+
+				CALL FRAMEINT
+
+LMEM_INTSTORE:	equ $+1
+				ld a,00
+				out (lmpr),a
+
+                pop af
+				EI
+				RETI
+
+NOTFRAMEINT:    
+                EX   AF,AF'
+                EI
+                RETI
+
+HMEM_SWITCH_LMEM_DRAW:   
+; Graphics routines outside of pages 1/2 need to marshall page switches though high memory
+; on entry, IX is the return address back in LMPR = 33
+;           HL is the screen address to be drawn in HMEM
+;         [ SP is the stack of background data and remove routines and must be in HMEM ]
+;           DE is the address of the routine to be called in LMEM at page A
+
+            out (lmpr),a
+            push de
+            ret
+
+
+HMEM_SWITCH_LMEM_DRAW_RETURN:   
+            ld a,CODEPAGE | 32
+            out (lmpr),a
+            jp (ix)
+
+
+HMEM_SWITCH_LMEM_REMOVE:   
+            pop af
+            out (lmpr),a
+            ret 
+
+HMEM_SWITCH_LMEM_LDIR:   
+;           page in A into LMPR, then do an LDIR with current values on HL, DE, BC
+;           returns by stack. SP needs to be safe (HMPR preferably)
+
+            out (lmpr),a
+            ldir
+            ld a,CODEPAGE | 32
+            out (lmpr),a
+            ret
+
+
+		
+
+
+SCREENFUNCTIONLEN: EQU $-SCREENFUNCTIONORG
+ENDOFSCREENDATA: EQU $
+
+SWITCH_HMPR_STACK_TOP: equ $+128  ; space for SWITCH_HMPR_STACK
+IM2BYTE:		equ (SWITCH_HMPR_STACK_TOP+255)/256
+

@@ -1,0 +1,29 @@
+                ORG 0
+@PAGE: equ DATASTARTPAGE
+
+                dump DATASTARTPAGE,$
+
+
+LOGOPAGE: equ @-PAGE
+LOGOADDR:       mdat "../_build/menu.png.samscreen.mdat.gz"
+
+
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
+
+
+MUSIC.maaora.gzPAGE: equ @-PAGE
+MUSIC.maaora.gz:     mdat "../_build/maaora.32k.gz"
+
+MUSIC.hector.gzPAGE: equ @-PAGE
+MUSIC.hector.gz:     mdat "../_build/hector.32k.gz"
+
+
+
+
+
+
+
+

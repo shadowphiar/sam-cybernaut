@@ -1,0 +1,192 @@
+; handling game config, setup and save/load
+
+INITCONFIG:
+                ld ix, configblock
+                
+                ld a,(configblock + 20)
+				or a
+				jr z, initp1control
+
+				ld ix,joystick1_controlsblock
+                cp 1
+                jr z, initp1control
+                
+				ld ix,joystick2_controlsblock
+
+initp1control:                
+                ld iy, player_space
+                call initcontrolblock
+                
+
+                ld ix, configblock + 10
+                
+                ld a,(configblock + 21)
+				or a
+				jr z, initp2control
+
+				ld ix,joystick1_controlsblock
+                cp 1
+                jr z, initp2control
+                
+				ld ix,joystick2_controlsblock
+
+initp2control:                
+                ld iy, player_space+SIZEOF.PLAYER
+                call initcontrolblock
+
+
+
+				ld ix, configblock
+
+				ld a,(ix + 22)
+				; music mode
+
+				or a
+				jr z, setmusicoff
+				cp 1
+				jr z, setmusicsoft
+
+setmusicfull:
+				xor a
+				ld (is_music_softened),a
+				inc a
+				ld (is_music_enabled),a
+				jr musicmodeset
+setmusicsoft:
+				ld a,1
+				ld (is_music_softened),a
+				ld (is_music_enabled),a
+				jr musicmodeset
+
+setmusicoff:
+				xor a
+				ld (is_music_softened),a
+				ld (is_music_enabled),a
+				jr musicmodeset
+musicmodeset:
+
+
+
+				ld a,(ix + 23)
+				; fx mode
+
+				ld b, sfxmono_table/256
+				cp 1
+				jr z, setfxmode
+				ld b, sfxstereo_table/256
+				jr nc, setfxmode
+				
+				xor a
+				ld (fx_enabled),a
+				
+				jr fxset
+setfxmode:
+				ld a,b
+				ld (USING_SFX_TABLE),a
+				ld a,1
+				ld (fx_enabled),a
+fxset:
+
+
+				ld a,(ix + 24)
+				ld (show_timing_info),a
+
+				ld a,(ix + 25)
+				ld (best_level),a
+
+                ret
+
+
+initcontrolblock:
+                ld a,(ix+0)
+                ld (iy+PLAYER.UP_KEYMASK),a
+                ld a,(ix+1)
+                add KEYBOARD_TABLE\256
+                ld (iy+PLAYER.UP_KEYADDR),a
+
+                ld a,(ix+2)
+                ld (iy+PLAYER.DOWN_KEYMASK),a
+                ld a,(ix+3)
+                add KEYBOARD_TABLE\256
+                ld (iy+PLAYER.DOWN_KEYADDR),a
+
+                ld a,(ix+4)
+                ld (iy+PLAYER.LEFT_KEYMASK),a
+                ld a,(ix+5)
+                add KEYBOARD_TABLE\256
+                ld (iy+PLAYER.LEFT_KEYADDR),a
+
+                ld a,(ix+6)
+                ld (iy+PLAYER.RIGHT_KEYMASK),a
+                ld a,(ix+7)
+                add KEYBOARD_TABLE\256
+                ld (iy+PLAYER.RIGHT_KEYADDR),a
+
+                ld a,(ix+8)
+                ld (iy+PLAYER.FIRE_KEYMASK),a
+                ld a,(ix+9)
+                add KEYBOARD_TABLE\256
+                ld (iy+PLAYER.FIRE_KEYADDR),a
+
+				ret
+
+
+
+joystick1_controlsblock:	
+				db 2,4,4,4,16,4,8,4,1,4
+joystick2_controlsblock:	
+				db 8,3,4,3,1,3,2,3,16,3		; ??
+
+
+configblock:    
+config.player1controls: equ $-configblock
+                db 2,8,4,8,8,8,16,8,1,7     ; 0-9 player 1 keyboard controls
+                db 1,5,2,6,2,0,4,0,4,7	    ; 10-19 player 2 keyboard controls
+                db 0 ; 20  player 1 control mode (0=keyboard, 1=joystick1, 2=joystick2)
+                db 1 ; 21  player 1 control mode (0=keyboard, 1=joystick1, 2=joystick2)
+               
+                db 1 ; 22  music (0=off, 1=soft, 2=full)
+                db 2 ; 23  fx (0=off, 1=mono, 2=stereo)
+
+				db 0;  24  show timing info
+				db 8;  25  best level
+				
+				db 10	; 26 config block version
+				dm "CYBER"	; 27-31 magic
+                
+                ; 32-112 high score table of 80 bytes (10 rows x 8 bytes)
+                db 0x00,0x00,0x01,0x00,20,"M",".","S"
+                db 0x00,0x80,0x00,0x00,18,"M",".","K"
+                db 0x00,0x70,0x00,0x00,17,"T",".","U"
+                db 0x00,0x60,0x00,0x00,15,"K",".","H"
+                db 0x00,0x50,0x00,0x00,13,"Y",".","N"
+                db 0x00,0x40,0x00,0x00,12,"Y",".","K"
+                db 0x00,0x30,0x00,0x00,11,"Y",".","F"
+                db 0x00,0x20,0x00,0x00,10,"M",".","N"
+                db 0x00,0x10,0x00,0x00, 5,"M",".","M"
+                db 0x00,0x05,0x00,0x00, 3,"J",".","O"
+sizeof_configblock: equ $-configblock			
+				
+
+
+
+config_loaded_t:	DEFM "Config loaded"
+					DEFB 0
+config_saved_t:		DEFM "Config saved"				
+					DEFB 0
+config_badmagic_t:	DEFM "Bad config file"
+					DEFB 0
+config_filereaderror_t:	DEFM "Disk Error loading config"
+					DEFB 0
+config_filewriteerror_t: DEFM "Disk Error writing config"
+					DEFB 0
+config_outofdirspace_t: DEFM "Out of directory space"
+					DEFB 0
+config_writeprotect_t: DEFM "Disk write protected"
+					DEFB 0
+config_diskfull_t: DEFM "Disk full"
+					DEFB 0
+config_filenotfound_t: DEFM " "
+					DEFB 0
+config_missingdisk_t: DEFM "Missing disk"
+					DEFB 0

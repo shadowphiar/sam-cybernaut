@@ -5,7 +5,7 @@ from os import path
 
 def help():
     print """Usage:
-skextract.py [options] imagefile
+dskextract.py [options] imagefile
 -x=name     extract named file
 -o=dir      specify output directory"""
 

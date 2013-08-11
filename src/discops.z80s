@@ -1,0 +1,1054 @@
+; load/save a block of data, start configblock, size sizeof_configblock
+
+
+
+
+temp_track_storage: equ temp_space_for_loading_music	; 6k
+temp_track_storagesize:	equ max_size_of_loaded_music
+
+assert (temp_track_storage \ 256) == 0
+assert temp_track_storagesize >= 6144
+
+discop_save_config:
+	; examine the directory
+	; find an existing configuration file, or find empty disk space if there is not one
+	; (for new file, create a directory entry and write it)
+	; write the sector of the file + verify it
+	
+	xor a
+	ld (h_position_to_write_directory_entry),a
+
+
+	ld hl,sector_address_map
+	ld d,h
+	ld e,l
+	inc de
+	ld (hl),a
+	ld bc, sector_address_map_size-1
+	ldir
+
+	ld (current_directory_track),a
+
+	ld e,a
+
+	; if there could have been any delay since the last call, don't assume that the disk position is still valid
+	dec a
+	ld (LASTTRACK),a
+	ld (LASTTRACK2),a
+
+	call read_directory_track
+	jp c, directory_read_error
+
+	ld a,(temp_track_storage+255)
+	add 4
+	jr nc, found_num_dir_tracks
+	ld a,4	; SAMdos disk doesn't have extra dir tracks
+found_num_dir_tracks:
+	ld (number_of_directory_tracks),a ; potential number of directory tracks to be examined
+	
+next_directory_track:
+	ld c,20			; max number of directory entries we may have just loaded
+	
+	ld hl,temp_track_storage
+
+next_dir_entry:	
+	ld a,(hl)	;	status / file type
+	or a
+	jr z, file_erased
+	inc l
+	
+	ld de, target_filename
+	ld b,10
+
+compare_filename:	
+	ld a,(de)
+	cp (hl)
+	jr nz, not_target_file
+	inc e
+	inc l
+	djnz compare_filename
+
+	; excellent - we have found an existing config file
+
+
+	jp target_dir_entry_in_hl
+
+
+not_target_file:
+	; get its sector address map information then.
+
+	ld l, 15
+	ld de,sector_address_map
+	ld b,sector_address_map_size
+
+read_sector_address_map_loop:	
+	ld a,(de)
+	or (hl)
+	ld (de),a
+	
+	inc l
+	inc e
+	djnz read_sector_address_map_loop
+
+	jr next_directory_entry
+
+
+
+
+file_erased:
+	; here is where we will put the dir entry for the config file if we need to create one
+	
+	ld a,(h_position_to_write_directory_entry)
+	or a
+	jr nz, check_for_end_of_directory
+	
+	ld a,h
+	ld (h_position_to_write_directory_entry),a
+	ld a,(current_directory_track)
+	ld (track_to_write_directory_entry),a
+
+check_for_end_of_directory:
+	inc l
+	ld a,(hl)
+	or a
+	jr z, end_of_directory
+	
+
+
+
+
+next_directory_entry:
+
+	inc h
+	ld l,0
+	dec c
+	jr nz,next_dir_entry
+
+
+
+number_of_directory_tracks: equ $+1
+	ld e,4
+
+current_directory_track: equ $+1
+	ld a,00
+	cp e
+	jr nc, physical_end_of_directory
+
+	inc a
+	ld (current_directory_track),a
+	ld e,a
+	call read_directory_track
+	jp c, directory_read_error
+	jp next_directory_track
+
+physical_end_of_directory:
+	; if we haven't already found a good track_to_write_directory_entry
+	; then there's no remaining directory space on this disk!
+	
+	ld a,(h_position_to_write_directory_entry)
+	or a
+	jp z, out_of_directory_space
+
+end_of_directory:
+
+	ld b,sector_address_map_size
+	ld hl,	sector_address_map
+	
+	ld e,4
+	ld d,0	; calculate with 0-9 and fixup later
+
+search_sector_address_map:	
+	ld a,(hl)
+	cp 255
+	jr nz, found_a_free_sector_in_8
+	
+	ld a,d
+	add 8
+	ld d,a
+	sub 10
+	jr c, track_calc_ok
+	ld d,a
+
+	inc e
+	ld a,e
+	cp 80
+	jr nz, track_calc_ok
+	ld e,128
+	
+track_calc_ok:	
+	inc l
+	djnz search_sector_address_map
+	
+	jp error_disk_full
+
+found_a_free_sector_in_8:
+
+	ld c,a
+
+	ld b,1
+	
+	
+sector_search:
+	ld a,c
+	and b
+	jr z, found_a_free_sector
+	
+	inc d
+	ld a,d
+	sub 10
+	
+	jr c, sector_calc_ok
+	ld d,a
+
+	inc e
+	ld a,e
+	cp 80
+	jr nz, sector_calc_ok
+	
+	ld e,128
+	
+sector_calc_ok:	
+
+	or a
+	rl b
+
+	jr sector_search
+
+
+
+found_a_free_sector:
+	; huzzah!
+	
+	inc d	; calculated from 0-9 above, but store as 1-10
+
+	ld (file_write_sector_track), de
+	ld a,l
+	ld (file_write_sector_map_byte),a
+	ld a,b
+	ld (file_write_sector_map_mask),a
+	
+	
+	
+track_to_write_directory_entry:	equ $+1
+	ld e,00
+h_position_to_write_directory_entry:	equ $+1
+	ld h,00
+
+	ld a,h
+	sub temp_track_storage/256
+	rra
+	inc a
+	ld d,a
+
+	ld (sector_to_write_directory_entry),a
+
+; if this is current track, then the existing data (i.e. other half of directory entry) is already there
+; but if it isn't then load it.
+
+	ld a,(current_directory_track)
+	cp e
+	jr z, directory_entry_is_available
+
+	print "that part where it reloads a sector of the directory", $
+
+	ld a,h
+	sub temp_track_storage/256
+	rra		; sector is directory entry/2
+	inc a	; starting at 1
+	ld d,a	
+	
+	ld a,h
+	and 0xfe
+	ld h,a
+	xor a
+	ld l,a
+	
+	call readsector
+	jp c, directory_read_error
+	
+	ld a,(h_position_to_write_directory_entry)
+	ld h,a
+	
+
+directory_entry_is_available:
+
+	xor a
+	ld l,a
+
+clear_directory_entry:	
+	ld (hl),a
+	inc l
+	jr nz, clear_directory_entry
+
+
+; prepare the new directory entry
+
+	ld (hl),19	; status / file type = code file
+	inc l
+	
+	ld de,target_filename
+	ld b,10
+
+write_filename:	
+	ld a,(de)
+	ld (hl),a
+	inc e
+	inc l
+	djnz write_filename
+
+	inc l	
+	ld (hl),1	; lsb of number of sectors in file
+	inc l
+
+file_write_sector_track: equ $+1
+	ld de,0000
+	ld (hl),e	; track number
+	inc l
+	ld (hl),d	; sector number
+	inc l
+	
+file_write_sector_map_byte: equ $+1
+	ld a,00
+	add 15	; start of sector map
+	ld l,a
+	
+file_write_sector_map_mask: equ $+1
+	ld a,00
+	ld (hl),a	
+			
+
+	ld l,238
+	ld (hl),128
+	inc l
+	inc l
+	ld (hl),sizeof_configblock \ 256
+	inc l
+	ld (hl),sizeof_configblock / 256
+	inc l
+	ld (hl),255
+	inc l
+	ld (hl),255
+	inc l
+	ld (hl),255
+
+
+
+	
+	ld a,h
+	and 0xfe
+	ld h,a
+	xor a
+	ld l,a
+
+	ld a,(track_to_write_directory_entry)
+	ld e,a
+sector_to_write_directory_entry: equ $+1
+	ld d,00
+	
+	call writesector
+	jp c, file_write_error
+
+	ld a,(h_position_to_write_directory_entry)
+	ld h,a
+
+
+target_dir_entry_in_hl:
+	ld l,13
+	ld e,(hl)
+	inc l
+	ld d,(hl)
+	
+	push DE
+	
+	; actually write the file data
+
+	ld bc, sizeof_configblock
+
+	ld hl, temp_track_storage
+	ld (hl), 19
+	inc l
+	ld (hl), c
+	inc l
+	ld (hl), b
+	inc l
+	ld b,6
+	xor a
+fileheader:
+	ld (hl), a
+	inc l
+	djnz fileheader	
+	
+	ex de,hl
+	
+	ld hl, configblock
+	
+	ldir
+	
+	ld h,d
+	ld l,e
+	ld (hl),a
+	inc de
+	ld bc, 512 - 9 - sizeof_configblock 
+	ldir 
+	
+	pop DE
+	dec h
+	dec h
+	; assert l=0
+	
+	call writesector
+	jp c, file_write_error
+	ld hl, config_saved_t
+	ret					
+
+
+
+
+
+
+
+
+
+print "discop_load_config", $
+discop_load_config:
+	; examine the directory to find an existing configuration file
+	; load it
+
+	xor a
+	ld e,a
+	ld (current_directory_track),a
+
+	; if there could have been any delay since the last call, don't assume that the disk position is still valid
+	dec a
+	ld (LASTTRACK),a
+	ld (LASTTRACK2),a
+
+	call read_directory_track
+	jp c, directory_read_error
+
+	
+	ld a,(temp_track_storage+255)
+	add 4
+	jr nc, load_found_num_dir_tracks
+	ld a,4	; SAMdos disk doesn't have extra dir tracks
+load_found_num_dir_tracks:
+	ld (number_of_directory_tracks),a ; potential number of directory tracks to be examined
+
+	
+load_next_directory_track:
+	ld c,20			; max number of directory entries we may have just loaded
+	
+	ld hl,temp_track_storage
+
+load_next_dir_entry:	
+	ld a,(hl)	;	status / file type
+	or a
+	jr z, load_file_erased
+	inc l
+	
+	ld de, target_filename
+	ld b,10
+
+load_compare_filename:	
+	ld a,(de)
+	cp (hl)
+	jr nz, load_next_directory_entry
+	inc e
+	inc l
+	djnz load_compare_filename
+
+	; excellent - we have found an existing config file
+
+
+	jp load_target_dir_entry_in_hl
+
+
+
+load_file_erased:
+	inc l
+	ld a,(hl)
+	or a
+	jr z, file_not_found
+	
+
+
+
+
+load_next_directory_entry:
+
+	inc h
+	ld l,0
+	dec c
+	jr nz,load_next_dir_entry
+
+
+	ld a,(number_of_directory_tracks)
+	ld e,a
+	ld a,(current_directory_track)
+	cp e
+	jr nc, file_not_found
+
+	inc a
+	ld (current_directory_track),a
+	ld e,a
+	call read_directory_track
+	jp c, directory_read_error
+	jp load_next_directory_track
+
+
+
+
+
+load_target_dir_entry_in_hl:
+	ld l,13 ; track
+	ld e,(hl)
+	inc l
+	ld d,(hl)	; sector
+	
+	ld hl,temp_track_storage
+	call readsector
+	jp c, file_read_error
+
+
+	ld hl,temp_track_storage + 27+9	; 9 bytes of file header, 27 is position of magic within configblock
+	ld de, magiccompare
+	ld b,magiccomparelength
+
+compare_magic_loop:	
+	ld a,(de)
+	cp (hl)
+	jr nz, bad_magic
+	inc l
+	inc de
+	djnz compare_magic_loop
+
+
+	; all looks good, write the configblock
+	
+	ld l,9
+	ld de, configblock
+	ld bc, sizeof_configblock
+	ldir
+
+	ld hl,config_loaded_t
+	or a
+	ret
+	
+out_of_directory_space:
+	ld hl,config_outofdirspace_t
+	jr error_return_common
+directory_read_error:
+	ld hl,config_filereaderror_t
+	jr error_return_common
+error_disk_full:
+	ld hl,config_diskfull_t
+	jr error_return_common
+file_not_found:
+	ld hl,config_filenotfound_t
+	jr error_return_common
+file_read_error:
+	ld hl,config_filereaderror_t
+	jr error_return_common
+bad_magic:
+	ld hl,config_badmagic_t
+	jr error_return_common
+file_write_error:	; A comes from writesector, which comes from the disc controller
+					; and may give us a hint what went wrong
+	ld hl,config_writeprotect_t
+	bit 6,a
+	jr nz,error_return_common
+					
+	ld hl,config_filewriteerror_t
+
+error_return_common:
+	bit 7,a
+	jr nz, disk_missing_error
+	scf
+	ret
+disk_missing_error:
+	ld hl, config_missingdisk_t
+	scf
+	ret
+
+
+read_directory_track:		; E = track number (usually 0 - 3)
+							; reads up to 1 track of information, but may stop early
+	
+	ld hl, temp_track_storage
+	ld ix, temp_track_storage + 128
+
+	ld d,1	; sector 1 to start
+
+dir_readnextsector:	
+	CALL readsector
+	ret c	; exception handling
+	
+	ld a,(IX-128 + 1)
+	or a
+	ret z	; empty directory entry
+	
+	inc IXh
+	
+	ld a,(IX-128 + 1)
+	or a
+	ret z	; empty directory entry
+
+	INC IXh
+	
+	inc d
+	ld a,d
+	cp 11
+	jr c, dir_readnextsector
+	
+	ret
+	
+	
+STATUS1_1:     EQU  224
+TRACK1_1:      EQU  225
+SECTOR1_1:     EQU  226
+DATA1_1:       EQU  227
+
+STATUS1_2:     EQU  228
+TRACK1_2:      EQU  229
+SECTOR1_2:     EQU  230
+DATA1_2:       EQU  231
+
+
+READSECTOR:
+                          ; ON ENTRY:
+                          ;  HL = ADDRESS TO PUT READ DATA
+                          ;  E = TRACK, D = SECTOR
+                          ;   (assumes interrupts disabled)
+                          ; ON EXIT
+                          ;  HL = 512 BYTES AFTER ENTRY, DE unchanged
+
+               LD   (RETRYADDR),HL
+               ld b,5
+RETRYSECTOR:
+				ld a,b
+			   ld   (retrycount),a
+
+               BIT  7,E
+               JR   NZ,SIDE2
+
+
+
+SIDE1:         LD   A,E
+LASTTRACK:     EQU  $+1
+               CP   255
+               JR   Z,READSAMETRACK
+               LD   (LASTTRACK),A
+
+			   call SIDE1SEEK
+    			jr c,readerror_noretry
+
+READSAMETRACK: LD   A,D
+               OUT  (SECTOR1_1),A
+               LD   A,%10000000
+               OUT  (STATUS1_1),A
+
+               LD   B,0   ; BYTE COUNT
+
+               LD   A,15 ;20
+WAITLOOP2:     DEC  A
+               JR   NZ,WAITLOOP2
+
+READSECTOR1:
+               IN   A,(STATUS1_1)
+               BIT  1,A
+               JR   Z,NOBYTE1
+               IN   A,(DATA1_1)
+               LD   (HL),A
+               INC  HL
+               INC  B
+
+               JR   READSECTOR1
+
+NOBYTE1:
+               RRA
+               JR   C,READSECTOR1
+               AND  14
+               JR   Z,READOK
+               JR   READERROR
+
+
+
+
+
+
+SIDE2:
+               LD   A,E
+LASTTRACK2:    EQU  $+1
+               CP   255
+               JR   Z,READSAMETRACK2
+               LD   (LASTTRACK2),A
+               
+               call SIDE2SEEK
+               jr c,readerror
+               
+READSAMETRACK2:LD   A,D
+               OUT  (SECTOR1_2),A
+               LD   A,%10000000
+               OUT  (STATUS1_2),A
+
+               LD   B,0   ; BYTE COUNT
+
+               LD   A,15
+WAITLOOP4:     DEC  A
+               JR   NZ,WAITLOOP4
+
+READSECTOR2:
+               IN   A,(STATUS1_2)
+               BIT  1,A
+               JR   Z,NOBYTE2
+               IN   A,(DATA1_2)
+               LD   (HL),A
+               INC  HL
+               INC  B
+
+               JR   READSECTOR2
+
+NOBYTE2:
+               RRA
+               JR   C,READSECTOR2
+               AND  14
+               JR   NZ,READERROR
+
+READOK:
+               LD   A,B
+               OR   A
+               RET  Z
+
+READERROR:
+		 	   ld b,a
+			   ld a,255
+			   ld (lasttrack),a
+			   ld (lasttrack2),a
+			   ld a,b
+RETRYADDR:     EQU  $+1
+               LD   HL,0000
+
+RETRYCOUNT: equ $+1
+   			   ld b,00
+               DEC  b
+               JP   NZ,RETRYSECTOR
+readerror_noretry:
+EXITERROR:     SCF
+			   RET
+			   
+
+
+
+
+WRITESECTOR:   
+			print "WRITESECTOR", $
+                          ; ON ENTRY:
+                          ;  HL = ADDRESS OF DATA TO WRITE
+                          ;  E = TRACK, D = SECTOR
+                          ;   (assumes interrupts disabled)
+                          ; ON EXIT
+                          ;  HL = 512 BYTES AFTER ENTRY
+                          ; CARRY set if an error was detected
+                          ; C contains status code
+
+				ld (writesector_tracksector),de
+				ld (writesector_retryaddr),hl
+				ld a,5
+RETRY_sectorwrite:                                                                
+				ld (writesector_retrycount),a
+
+               BIT  7,E
+               JR   NZ,writesector_side2
+
+writesector_side1:
+				call SIDE1SEEK
+				jr c,writeerror_noretry
+
+			   LD   A,D                                      
+               OUT  (SECTOR1_1),A                                     
+
+        	   ld a,15
+@wait:		   dec a
+			   jr nz,@-wait
+
+               LD   A,0xa0                                       
+               OUT  (STATUS1_1),A                                     
+
+               LD   B,20                                        
+ws1_delayloop: DJNZ ws1_delayloop                                
+               LD   BC,DATA1_1                                     
+               JR   ws1_writewait                               
+ws1_writebyte: OUTI                                             
+ws1_writewait: IN   A,(STATUS1_1)                                     
+               BIT  1,A                                         
+               JR   NZ,ws1_writebyte                             
+               BIT  0,A                                         
+               JR   NZ,ws1_writewait                            
+               jr writesector_finish
+                                                                               
+writesector_side2:
+    		   call SIDE2SEEK
+				jr c,writeerror
+				
+               LD   A,D                                     
+               OUT  (SECTOR1_2),A                                     
+
+  	    	   ld a,15
+@wait:   	   dec a
+			   jr nz,@-wait
+                                  
+               LD   A,0xa0                                       
+               OUT  (STATUS1_2),A                                     
+               LD   B,20                                        
+ws2_delayloop: DJNZ ws2_delayloop                               
+               LD   BC,DATA1_2                                      
+               JR   ws2_writewait                               
+ws2_writebyte: OUTI                                             
+ws2_writewait: IN   A,(STATUS1_2)                                     
+               BIT  1,A                                         
+               JR   NZ,ws2_writebyte                            
+               BIT  0,A                                         
+               JR   NZ,ws2_writewait                            
+
+writesector_finish:
+               AND  0x5c                                         
+
+               OR A                                    
+               RET  Z
+
+writeerror:				
+				ld c,a	; keep status register
+
+writesector_tracksector: equ $+1
+				ld de,0000
+writesector_retryaddr: equ $+1
+				ld hl,0000
+writesector_retrycount: equ $+1
+				ld a,5
+				dec a
+				jp nz, RETRY_sectorwrite
+
+				ld a,c
+writeerror_noretry:
+				scf                            
+                RET              
+
+
+
+SIDE2SEEK:		;		seek to track E
+@busywait:    	IN   A,(STATUS1_2)
+               	RRA
+               	JR   C,@busywait
+								
+			   	ld a,e
+			   	and 127
+               	OUT  (DATA1_2),A
+
+				ld c, STATUS1_2
+		;		jr seek_common
+
+
+seek_common:               
+               	LD   A,20
+@wait:	     	DEC  A
+               	JR   NZ,@-wait
+
+               	LD   A,0x13	; seek, do perform spin up	(note, verify is NOT set because this will not finish if no disk is present)
+               	OUT  (C),A
+
+               	LD   A,20
+@wait:	     	DEC  A
+               	JR   NZ,@-wait
+
+WAITTRACK1:
+		    	IN   A,(C)
+               	RRA
+               	JR   C,WAITTRACK1
+
+				and 0x0c
+				cpl
+				cp 255
+				ret
+				; carry is set if any bit of S3, S4 is set
+
+
+
+SIDE1SEEK:		;		seek to track E				use BC but don't corrupt DE
+@busywait:    	IN   A,(STATUS1_1)
+               	RRA
+               	JR   C,@busywait
+															
+			   	ld a,e
+			   	and 127
+			   	jr nz, seek_notzero
+			 	ld a,d
+			 	cp 1
+			 	jr z, seek_zero  	
+			   	xor a
+seek_notzero:			   	
+               	OUT  (DATA1_1),A
+
+				ld c, STATUS1_1
+				jr nz,seek_common
+
+				ld a,d
+				cp 1
+				jr nz, seek_common
+
+; 				seeking track zero sector 1
+; 				perform extra checks to see if disk is in drive
+
+;				(the V bit in the command cannot be used: it times out on disc revolutions, so
+; 				 if there is no disk then it hangs permanently.
+;				 In any case, the V bit is not implemented in SimCoupe!
+;				 presumably because nobody uses it given the above caveat.
+
+; 				watch the status register for periodic "index hole" bit - if there are none in a reasonable time
+;				then we assume there is no disc in the drive
+
+seek_zero:               
+				ld a,0xd0 ; force interrupt - terminate command
+    					  ; start the drives in a known state
+				out (status1_1),a
+				out (status1_2),a
+
+
+               	LD   A,20
+@wait:	     	DEC  A
+               	JR   NZ,@-wait
+
+
+waitastartupdiskloop:
+				in a,(status1_1)
+				ld e,a
+				in a,(status1_2)
+				or e
+				rra
+				jr c, waitastartupdiskloop
+				
+
+			if DEBUG
+			ld a,16
+			out (clut),a
+			endif							
+
+				; we know D=1, E=0 so we can reuse it so long as we put that back later
+				; we know the command register being used is STATUS1_1
+
+				ld bc,65535	; delay count
+
+
+				xor a
+              	OUT  (DATA1_1),A
+
+               	LD   A,20
+@wait:	     	DEC  A
+               	JR   NZ,@-wait
+
+
+               	LD   A,0x13	; seek, do perform spin up	(note, verify is NOT set because this will not finish if no disk is present)
+               	OUT  (STATUS1_1),A
+
+WAITTRACK0:
+
+               	LD   A,13
+@wait:	     	DEC  A
+               	JR   NZ,@-wait
+
+			if DEBUG
+			ld a,32
+			out (clut),a
+			endif							
+
+				dec bc
+				ld a,b
+				or c
+				jr z, zerotimeout
+
+		    	IN   A,(STATUS1_1)
+				ld d,a
+		    	or e
+		    	ld e,a
+		    	ld a,d
+		    	
+               	RRA
+               	JR   C,WAITTRACK0
+
+			if DEBUG
+			ld a,48
+			out (clut),a
+			endif							
+
+				ld a,d
+				and 0x18
+				ld d,a
+				cpl
+				cp 255
+				; carry is set if any bit of S3, S4 is set
+				ld a,d
+				jr c,track0return
+				; command has finished but reported an error
+
+
+			if DEBUG
+			ld a,64
+			out (clut),a
+			endif							
+
+;				e[1] is already set if we saw an index hole during the inital seek
+				ld a,e
+				cpl
+				rra
+				rra
+				ld a,0
+				jr nc, track0return
+
+; need to make at least 1024 reads of status for Drive.cpp! and perhaps considerably more for real-time real Sam
+; as we only do this for track 0, we know the status register is STATUS1_1
+
+
+check_disk_present_loop:				
+				in a,(status1_1)
+				and 0x02
+				jr nz,track0return
+				
+               	LD   A,10
+@wait:	     	DEC  A
+               	JR   NZ,@-wait
+
+			if DEBUG
+			ld a,80
+			out (clut),a
+			endif							
+
+				dec bc
+				ld a,b
+				or c
+				jr nz, check_disk_present_loop
+
+zerotimeout:	
+				ld a,0xd0 ; force interrupt - terminate command
+				out (status1_1),a
+
+			if DEBUG
+			ld a,96
+			out (clut),a
+			endif							
+
+		
+				ld a,0x80
+				scf
+
+track0return:	
+				ld de,256
+				ret
+
+magiccompare:	dm "CYBER"	
+magiccomparelength: equ 5
+
+DS ALIGN 16
+target_filename: dm "Cyber.cfg "
+
+DS ALIGN 256
+sector_address_map_size: equ 195                
+sector_address_map:	ds sector_address_map_size
