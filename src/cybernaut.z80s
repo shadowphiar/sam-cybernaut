@@ -583,10 +583,10 @@ MAINLOOP:
     ; assume all user input will be handled by FRAMEINT that has been set up
     ; background loop obeys incoming graphics requests and does nothing else
 
-;				ld a,SCREENPAGE0
-;				out (hmpr),a
+				ld a,SCREENPAGE0
+				out (hmpr),a
 
-                ld sp, SPRITE_STACK_FRAME_0
+                ld sp, HMEM_STACK_FRAME
                 ei
 
                 ld a,BORDERSCREENON

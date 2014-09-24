@@ -2,7 +2,7 @@
 
 
 if 0==defined(DEBUG)
-DEBUG:		EQU 0
+DEBUG:		EQU 1
 endif
 
 if 0==defined(DEMO)
