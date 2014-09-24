@@ -33,13 +33,32 @@ print "MAIN MENU", $
 
                 ld a,SCREENPAGE0
                 call COPY_THIS_SCREEN_ONCE
+                ld a,SCREENPAGE0+2
+                call COPY_THIS_SCREEN_ONCE
+                ld a,SCREENPAGE0+4
+                call COPY_THIS_SCREEN_ONCE
                 
                 ld a,SCREENPAGE0
                 out (hmpr),a
                 or 96
                 out (vmpr),a
 
+				ld hl, MAINMENU_INTCALLBACK
+				ld (FRAMEVECTOR),hl
+
+
+
                 jp MAINLOOP
                 
                 
+                
+                
+MAINMENU_INTCALLBACK:                
+				ld a,(last_calculated_frame)
+				inc a
+				ld (last_calculated_frame),a    ; signal that we want the screen frame to update + cycle
+				
+				
+				
+				ret
                 

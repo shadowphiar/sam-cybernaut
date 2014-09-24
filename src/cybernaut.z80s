@@ -665,16 +665,43 @@ frame_being_drawn: equ $+1
   				ld (last_drawn_frame),a
 
 
+                ld hl,(65534)
+                ld a,h
+                or l
+                jr z,noscreenrestore
+ 
+                ld sp,hl
+                
+                RET   ; goes through background restore routines and gets back here
+        
+                ld hl,0
+                ld (65534),hl
+ 
+noscreenrestore: 
 
 
-				ld sp, HMEM_STACK_FRAME
+
+				ld sp, 32768+24576
+
+				ld de, noscreenrestore
+				push de
+                ld a,CODEPAGE | 32
+                push af
+                ld de, HMEM_SWITCH_LMEM_REMOVE
+                push de
+                ; marshall through hmem, any previous remove routines are in other page
+
 
 				ld IX, draw_loop_return_address
 
 				ld h, 96
 				ld l, 128
 				ld de, ship.png_0_0ID			; get HL, DE as if from a list of sprites provided by last FRAMEINT
-				
+
+				ld a,(frame_being_drawn)
+				and 127
+				add 64	; temp hack
+				ld l,a
 				
 				ld a,e
 				and 31
@@ -685,7 +712,6 @@ frame_being_drawn: equ $+1
 				scf
 				rr h
 				rr l
-
 
 				jp HMEM_SWITCH_LMEM_DRAW ; SP is background remove stack, DE is routine in page A, HL is HMEM address to draw
 

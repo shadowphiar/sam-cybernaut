@@ -15,13 +15,6 @@ best_level: db 0
 
 
 
-
-
-
-
-
-
-
 PLAYER.X: equ 0
 PLAYER.Xh: equ 1
 PLAYER.Y: equ 2
