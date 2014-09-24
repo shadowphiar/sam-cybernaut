@@ -665,6 +665,13 @@ frame_being_drawn: equ $+1
   				ld (last_drawn_frame),a
 
 
+
+				ld a,(WORKSCREEN)
+				or 96
+				out (vmpr),a ; this is only to see the working copy, shouldn't do this normally
+
+
+
                 ld hl,(65534)
                 ld a,h
                 or l
@@ -672,7 +679,7 @@ frame_being_drawn: equ $+1
  
                 ld sp,hl
                 
-                RET   ; goes through background restore routines and gets back here
+            ;    RET   ; goes through background restore routines and gets back here
         
                 ld hl,0
                 ld (65534),hl
@@ -681,7 +688,7 @@ noscreenrestore:
 
 
 
-				ld sp, 32768+24576
+				ld sp, 32768+24576 ; HMEM_STACK_FRAME
 
 				ld de, noscreenrestore
 				push de
