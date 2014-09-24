@@ -24,6 +24,14 @@ MUSIC.hector.gz:     mdat "../_build/hector.32k.gz"
 
 
 
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
+
+
+	INC "../_build/ship.png_1_2.sprite.z80s"
+@PAGE: 		equ ship.png_1_2ENDPAGE                
 
 
 

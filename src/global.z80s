@@ -36,7 +36,7 @@ SCREENPAGESPECIAL: equ 0
 
 
 
-; other useful glabal definitions
+; other useful global definitions
 
 USEIX:          EQU 221
 USEIY:          EQU 253

@@ -5,7 +5,7 @@ sampalette = scripts/sampalette.py -q -o _build
 dskextract = scripts/dskextract.py -o _build
 
 
-PAL = 0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
+PAL = -p 0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
 
 all: cybernaut.dsk
 
@@ -16,7 +16,7 @@ run: cybernaut.dsk
 	open $<
 
 _build/mkdir:
-	mkdir _build
+	mkdir -p _build
 	touch _build/mkdir
 
 
@@ -36,10 +36,11 @@ SOURCE = src/cybernaut.z80s  \
 DATA = _build/menu.png.samscreen.mdat.gz \
 	_build/hector.32k.gz \
 	_build/maaora.32k.gz \
-
+	_build/ship.png_1_2.sprite.z80s \
 
 
 cybernaut.dsk: $(SOURCE) $(OBJ)  _build/mkdir
+	date "+%Y-%m-%d(`git rev-parse --short HEAD`)" > _build/version
 	$(pyz80) -o $@ --importfile=_build/data.sym $<
 
 
@@ -79,6 +80,8 @@ _build/menu.png.samscreen.mdat.gz: graphics/menu.png
 
 
 
+
+
 _build/maaora.32k.gz: music/music.dsk
 	$(dskextract) -x maaora.32k $<
 	gzip _build/maaora.32k
@@ -86,3 +89,13 @@ _build/maaora.32k.gz: music/music.dsk
 _build/hector.32k.gz: music/music.dsk
 	$(dskextract) -x hector.32k $<
 	gzip _build/hector.32k
+
+
+
+
+
+
+
+
+_build/ship.png_1_2.sprite.z80s: graphics/ship.png
+	$(sampalette) $(PAL) -s -d -1 -b 68 -x 2 -y 3 $<

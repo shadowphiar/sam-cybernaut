@@ -116,7 +116,7 @@ def navigate(sprite,x,y,reverse):
 
 
 
-option_args, file_args = getopt.getopt(sys.argv[1:], 'lr:p:sb:do:x:y:macv:1XYRGq')
+option_args, file_args = getopt.getopt(sys.argv[1:], 'lr:p:sb:do:x:y:macv:1XYRGqd')
 
 MAXPALETTE = 16
 # reduce this if some colours are reserved for other use (may be useful to detect black and use default 0)
@@ -146,6 +146,9 @@ FINALOFFSET = []
 BACKGROUNDCLIPPING = False
 
 DIAGNOSTICS = True
+DRAWLOOPID = False
+
+
 
 for option,value in option_args:
     if option in ['-r']: # restrict
@@ -206,6 +209,9 @@ for option,value in option_args:
 
     if option in ['-q']:
         DIAGNOSTICS = False
+        
+    if option in ['-d']:
+        DRAWLOOPID = True # calculate a single-word identifier for each sprite, autoselecting L/R based on carry flag
     
 BLANKRGB = sam2rgb(BLANKPALETTE)    
 
@@ -336,7 +342,7 @@ for inputfilename in file_args:
         im.putdata(newimage)
 
         if DIAGNOSTICS:
-	        im.save(inputfile+".sampalette.png","")
+            im.save(inputfile+".sampalette.png","")
                 
         # now limit number of colours per line allowing 1 palette change per line
         
@@ -509,9 +515,9 @@ for inputfilename in file_args:
                         candidateindex = 15
                 
                 paletteimage.append(candidate)
-        		
+                
                 assert(candidateindex <= 15)
-        		
+                
                 if x%2:
                     samscreendata[-1] += candidateindex
                 else:
@@ -526,7 +532,7 @@ for inputfilename in file_args:
         
         im.putdata(paletteimage)
         if DIAGNOSTICS:
-	        im.save(inputfile+".sampalette.limit"+str(MAXPALETTE)+".png","")
+            im.save(inputfile+".sampalette.limit"+str(MAXPALETTE)+".png","")
         
         
         if not MAKESPRITE:
@@ -590,6 +596,20 @@ for inputfilename in file_args:
             else:
                 label = ["RIGHT","LEFT"]
                 offsets = [1,0]
+
+
+            if DRAWLOOPID:
+                sourcecode.append( "    DS ALIGN 16" )
+                sourcecode.append( inputfile.split('/')[-1]+"ID: EQU (2*$) + (@-PAGE)" )
+                sourcecode.append( "    DS (@-PAGE)/2" )
+                # specify address in range 0 - 0x7ff0 (bit 15 always 0) as AAAA AAAA AAAP PPPP
+
+                if not ALIGNED:
+                    sourcecode.append( "    JP c, DRAW"+inputfile.split('/')[-1]+"RIGHT" )
+                        
+
+
+
             
             for offset in offsets:
               for setfinaloffset in (FINALOFFSET if FINALOFFSET else [None]):
@@ -613,8 +633,14 @@ for inputfilename in file_args:
                     sourcecode.append( "        ENDIF")    
 
 
+
                 sourcecode.append( uid+":"  )  
                 sourcecode.append( uid+"PAGE: EQU @-PAGE"  )  
+
+
+
+
+
 
                 ts = 0
 

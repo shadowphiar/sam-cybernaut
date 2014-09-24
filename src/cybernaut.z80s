@@ -44,7 +44,6 @@
 
                 LD A,CODEPAGE + 32
 				OUT  (LMPR),A
-                LD   SP,PROGRAM_STACK_FRAME
 
                 JP   LMEM
 
@@ -496,11 +495,98 @@ FRAMESPSTORE:   EQU  $+1
 
 
 
+
+
+MUSIC_GOTO_PATTERN:     ; pattern in A register  (can be called at any time [maintains hl])
+                LD C,A
+
+				LD A,(is_music_enabled)
+				OR A
+				RET Z
+
+                XOR A
+                RL C
+                RLA
+                ADD 128
+                LD B,A
+                LD (music_new_pattern_set), BC
+                RET
+
+MUSIC_GOTO_CUSTOM:
+				LD A,(is_music_enabled)
+				OR A
+				RET Z
+				LD A,128+ (load_music_page_offset/256)
+				LD (music_new_pattern_set+1),A
+				XOR A
+				assert (load_music_page_offset\256) == 0
+				LD (music_new_pattern_set),A
+				RET
+
+
+
+SFX_START:              ; stereo position in A, SFX address in hl
+			
+				LD (sfx_new_fxstereo),A
+
+fx_enabled: EQU $+1
+				LD A,00
+				OR A
+				RET Z
+
+                LD (sfx_new_fxaddr),HL
+          
+                RET
+
+
+SILENCE:        ; (can be called at any time [maintains hl])
+
+                LD BC,511
+                LD D,5
+                XOR A
+
+@loop:          
+                OUT  (C),D
+                DEC B
+                OUT  (C),A
+                INC B
+                DEC D
+                JR NZ,@loop
+                OUT  (C),D
+                DEC B
+                OUT  (C),A
+
+                LD (sfx1_length),A
+                LD (sfx2_length),A
+
+                CALL MUSIC_GOTO_PATTERN
+                RET
+
+LMEM:
+                LD   SP,SPRITE_STACK_FRAME_0
+
+                call SILENCE
+
+                CALL LOAD_CONFIG
+                LD (status_message),HL
+
+                CALL INITCONFIG
+
+				JP MAINMENU
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; MAIN LOOP
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 MAINLOOP:
     ; assume all user input will be handled by FRAMEINT that has been set up
     ; background loop obeys incoming graphics requests and does nothing else
 
-                ld sp, PROGRAM_STACK_FRAME
+;				ld a,SCREENPAGE0
+;				out (hmpr),a
+
+                ld sp, SPRITE_STACK_FRAME_0
                 ei
 
                 ld a,BORDERSCREENON
@@ -571,13 +657,48 @@ WORKSCREEN:     EQU $+1
                 ld a,SCREENPAGE0
 workscreenok:   ld (WORKSCREEN),a
 
-
-                ld sp, PROGRAM_STACK_FRAME
+                ld sp, LMEM_SWITCH_STACK_FRAME
 				call SWITCH_HMPR
 
 frame_being_drawn: equ $+1
 				ld a,00
   				ld (last_drawn_frame),a
+
+
+
+
+				ld sp, HMEM_STACK_FRAME
+
+				ld IX, draw_loop_return_address
+
+				ld h, 96
+				ld l, 128
+				ld de, ship.png_0_0ID			; get HL, DE as if from a list of sprites provided by last FRAMEINT
+				
+				
+				ld a,e
+				and 31
+				or 32
+				rr d
+				rr e ; aligns to 16 bytes, and specifies the address as in a 32k page
+				
+				scf
+				rr h
+				rr l
+
+
+				jp HMEM_SWITCH_LMEM_DRAW ; SP is background remove stack, DE is routine in page A, HL is HMEM address to draw
+
+
+
+
+
+
+draw_loop_return_address:
+
+				ld (65534), SP
+				
+
 
 EXIT_MAIN_LOOP_VECTOR: equ $+1
                 ld hl,0000
@@ -596,102 +717,25 @@ EXIT_MAIN_LOOP_VECTOR: equ $+1
 
 
 
-
-MUSIC_GOTO_PATTERN:     ; pattern in A register  (can be called at any time [maintains hl])
-                LD C,A
-
-				LD A,(is_music_enabled)
-				OR A
-				RET Z
-
-                XOR A
-                RL C
-                RLA
-                ADD 128
-                LD B,A
-                LD (music_new_pattern_set), BC
-                RET
-
-MUSIC_GOTO_CUSTOM:
-				LD A,(is_music_enabled)
-				OR A
-				RET Z
-				LD A,128+ (load_music_page_offset/256)
-				LD (music_new_pattern_set+1),A
-				XOR A
-				assert (load_music_page_offset\256) == 0
-				LD (music_new_pattern_set),A
-				RET
-
-
-
-SFX_START:              ; stereo position in A, SFX address in hl
-			
-				LD (sfx_new_fxstereo),A
-
-fx_enabled: EQU $+1
-				LD A,00
-				OR A
-				RET Z
-
-                LD (sfx_new_fxaddr),HL
-          
-                RET
-
-
-SILENCE:        ; (can be called at any time [maintains hl])
-
-                LD BC,511
-                LD D,5
-                XOR A
-
-@loop:          
-                OUT  (C),D
-                DEC B
-                OUT  (C),A
-                INC B
-                DEC D
-                JR NZ,@loop
-                OUT  (C),D
-                DEC B
-                OUT  (C),A
-
-                LD (sfx1_length),A
-                LD (sfx2_length),A
-
-                CALL MUSIC_GOTO_PATTERN
-                RET
-
-LMEM:
-                call SILENCE
-
-                CALL LOAD_CONFIG
-                LD (status_message),HL
-
-                CALL INITCONFIG
-
-				JP MAINMENU
-
-
-KEYBOARD_TABLE:     ds 9
-STATUS_MESSAGE:     dw 0
-
-
-
                 INCLUDE "physics.z80s"
                 INCLUDE "config.z80s"
                 INCLUDE "mainmenu.z80s"
 
-
+KEYBOARD_TABLE:     ds 9
+STATUS_MESSAGE:     dw 0
 
             DS 32000-$
 
+            
 ds 256
+SPRITE_STACK_FRAME_0: equ $
+ds 256
+SPRITE_STACK_FRAME_1: equ $
+            
+ds 6
+LMEM_SWITCH_STACK_FRAME: equ $
+ds 250
 FRAMEINT_STACK_FRAME: equ $            
-            
-ds 256
-PROGRAM_STACK_FRAME: equ $
-            
             
 HMEM_STACK_FRAME: equ 65534
         
