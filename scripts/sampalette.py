@@ -116,7 +116,7 @@ def navigate(sprite,x,y,reverse):
 
 
 
-option_args, file_args = getopt.getopt(sys.argv[1:], 'lr:p:sb:do:x:y:macv:1XYRGqd')
+option_args, file_args = getopt.getopt(sys.argv[1:], 'lr:p:sb:do:x:y:macv:1XYRGqD')
 
 MAXPALETTE = 16
 # reduce this if some colours are reserved for other use (may be useful to detect black and use default 0)
@@ -210,7 +210,7 @@ for option,value in option_args:
     if option in ['-q']:
         DIAGNOSTICS = False
         
-    if option in ['-d']:
+    if option in ['-D']:
         DRAWLOOPID = True # calculate a single-word identifier for each sprite, autoselecting L/R based on carry flag
     
 BLANKRGB = sam2rgb(BLANKPALETTE)    

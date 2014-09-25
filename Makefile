@@ -1,7 +1,7 @@
 ASMFLAGS = 
 
 pyz80 = ../pyz80/pyz80.py $(ASMFLAGS)
-sampalette = scripts/sampalette.py -q -o _build
+sampalette = scripts/sampalette.py -o _build
 dskextract = scripts/dskextract.py -o _build
 
 
@@ -98,4 +98,4 @@ _build/hector.32k.gz: music/music.dsk
 
 
 _build/ship.png_1_2.sprite.z80s: graphics/ship.png
-	$(sampalette) $(PAL) -s -d -1 -b 48 -x 2 -y 3 $<
+	$(sampalette) $(PAL) -s -D -1 -b 48 -x 2 -y 3 $<
