@@ -710,12 +710,14 @@ frame_being_drawn: equ $+1
 				ld a,e
 				and 31
 				or 32
+				
 				rr d
 				rr e ; aligns to 16 bytes, and specifies the address as in a 32k page
 				
 				scf
 				rr h
 				rr l
+print "BREAK",$                
 
 				jp HMEM_SWITCH_LMEM_DRAW ; SP is background remove stack, DE is routine in page A, HL is HMEM address to draw
 

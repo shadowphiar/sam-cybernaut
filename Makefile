@@ -98,4 +98,4 @@ _build/hector.32k.gz: music/music.dsk
 
 
 _build/ship.png_1_2.sprite.z80s: graphics/ship.png
-	$(sampalette) $(PAL) -s -d -1 -b 68 -x 2 -y 3 $<
+	$(sampalette) $(PAL) -s -d -1 -b 48 -x 2 -y 3 $<
