@@ -671,24 +671,21 @@ frame_being_drawn: equ $+1
 				out (vmpr),a ; this is only to see the working copy, shouldn't do this normally
 
 
-
-                ld hl,(65534)
-                ld a,h
-                or l
-                jr z,noscreenrestore
- 
-                ld sp,hl
-                
-            ;    RET   ; goes through background restore routines and gets back here
-        
-                ld hl,0
-                ld (65534),hl
- 
-noscreenrestore: 
+				ld a,16
+				out (clut),a
 
 
 
-				ld sp, 32768+24576 ; HMEM_STACK_FRAME
+
+
+
+
+
+				ld a,32
+				out (clut),a
+
+
+				ld sp, 57344; HMEM_STACK_FRAME
 
 				ld de, noscreenrestore
 				push de
@@ -724,13 +721,34 @@ noscreenrestore:
 
 
 
-
-
-
 draw_loop_return_address:
 
 				ld (65534), SP
-				
+
+
+
+
+				ld a,64
+				out (clut),a
+
+				; obviously in the working case, we do this the other way round
+
+
+                ld hl,(65534)
+                ld a,h
+                or l
+                jr z,noscreenrestore
+ 
+                ld sp,hl
+print "BREAK",$                
+                RET   ; goes through background restore routines and gets back here
+noscreenrestore: 
+
+
+
+
+				xor a
+				out (clut),a
 
 
 EXIT_MAIN_LOOP_VECTOR: equ $+1

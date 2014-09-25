@@ -33,10 +33,7 @@ print "MAIN MENU", $
 
                 ld a,SCREENPAGE0
                 call COPY_THIS_SCREEN_ONCE
-                ld a,SCREENPAGE0+2
-                call COPY_THIS_SCREEN_ONCE
-                ld a,SCREENPAGE0+4
-                call COPY_THIS_SCREEN_ONCE
+                call DUPLICATESCREENDATA
                 
                 ld a,SCREENPAGE0
                 out (hmpr),a
