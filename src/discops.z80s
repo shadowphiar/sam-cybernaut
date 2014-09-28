@@ -249,8 +249,6 @@ h_position_to_write_directory_entry:	equ $+1
 	cp e
 	jr z, directory_entry_is_available
 
-	print "that part where it reloads a sector of the directory", $
-
 	ld a,h
 	sub temp_track_storage/256
 	rra		; sector is directory entry/2
@@ -409,7 +407,6 @@ fileheader:
 
 
 
-print "discop_load_config", $
 discop_load_config:
 	; examine the directory to find an existing configuration file
 	; load it
@@ -741,7 +738,6 @@ EXITERROR:     SCF
 
 
 WRITESECTOR:   
-			print "WRITESECTOR", $
                           ; ON ENTRY:
                           ;  HL = ADDRESS OF DATA TO WRITE
                           ;  E = TRACK, D = SECTOR

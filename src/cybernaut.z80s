@@ -145,8 +145,6 @@ FRAMECLOCK: EQU $+1
 
                 LD HL,KEYBOARD_TABLE
         
-        print "KEYBOARD TABLE", KEYBOARD_TABLE
-        
                 LD B,0xfe
         
         
@@ -181,8 +179,6 @@ get_keyboard_loop:
 
                 LD   A,MUSICPAGE
                 OUT  (HMPR),A
-
-                print "SFX", $
 
 sfx_new_fxaddr: EQU $+1
                 LD HL,0000
@@ -671,32 +667,19 @@ frame_being_drawn: equ $+1
 
 
 
-				ld a,64
-				out (clut),a
-
-				; obviously in the working case, we do this the other way round
-
-
                 ld hl,(65534)
                 ld a,h
                 or l
                 jr z,noscreenrestore
  
                 ld sp,hl
-print "BREAK",$                
                 RET   ; goes through background restore routines and gets back here
 noscreenrestore: 
 
 
 
 
-
-
-
-				ld a,32
-				out (clut),a
-
-
+				; set up the stack for background removal routines 
 				ld sp, HMEM_STACK_FRAME
 
 				ld de, noscreenrestore
@@ -707,6 +690,11 @@ noscreenrestore:
                 push de
                 ; marshall through hmem, any previous remove routines are in other page
 
+
+
+
+
+no_drawvector_call:
 
 				ld IX, draw_loop_return_address
 
@@ -729,7 +717,6 @@ noscreenrestore:
 				scf
 				rr h
 				rr l
-print "BREAK",$                
 
 				jp HMEM_SWITCH_LMEM_DRAW ; SP is background remove stack, DE is routine in page A, HL is HMEM address to draw
 

@@ -279,7 +279,6 @@ decodegzscreenlmprs: equ $+1
 
 
 DECODEMUSIC:        ; decode the music file from HL in page A, and put it in musicpage
-print "DECODEMUSIC", $
     ld de,32768
     call DECODEGZ
     

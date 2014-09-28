@@ -1,5 +1,4 @@
 MAINMENU:
-print "MAIN MENU", $
                 di
 
                 xor a
@@ -55,7 +54,68 @@ MAINMENU_INTCALLBACK:
 				inc a
 				ld (last_calculated_frame),a    ; signal that we want the screen frame to update + cycle
 				
+				print "BREAK at",$, "KEYBOARD_TABLE=",KEYBOARD_TABLE
+				
+				ld h, KEYBOARD_TABLE/256
+				ld a, (player_space + PLAYER.FIRE_KEYaddr)
+				ld l,a
+				ld a, (player_space + PLAYER.FIRE_KEYmask)
+				and (hl)
+				or a
+				jr z, mainmenu_startgame
 				
 				
 				ret
+
+
+
+mainmenu_startgame:
+				ld hl, Start_Game
+				ld (EXIT_MAIN_LOOP_VECTOR), hl
                 
+                ret
+                
+                
+Start_Game:
+				di
+				xor a
+				                
+                                xor a
+                ld (NEXTDISPLAYSCREEN),a    ; frame interrupt shouldn't switch VMPR on us until we're doing animations
+
+                ld a,SCREENPAGE0+96
+                ld (DISPLAYSCREEN),a
+
+ 
+                ld a,BORDERSCREENOFF
+                out (BORDER),a
+                LD   A,SCREENPAGESPECIAL
+                out (HMPR),a
+                
+                
+                ld sp,HMEM_STACK_FRAME
+
+                ld a,MUSIC.hector.gzPAGE
+                ld hl,MUSIC.hector.gz
+                call DECODEMUSIC
+                call MUSIC_GOTO_CUSTOM
+
+                ld a,SCREENPAGE0
+                call COPY_THIS_SCREEN_ONCE
+                call DUPLICATESCREENDATA
+                
+                ld a,SCREENPAGE0
+                out (hmpr),a
+                or 96
+                out (vmpr),a
+
+				ld hl, GAMEPHYSICS_INTCALLBACK
+				ld (FRAMEVECTOR),hl
+
+
+
+                jp MAINLOOP
+
+
+GAMEPHYSICS_INTCALLBACK:
+				ret
