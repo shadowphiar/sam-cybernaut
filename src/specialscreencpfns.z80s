@@ -236,8 +236,10 @@ COPY_THIS_SCREEN_ONCE:
 		or 32
 		out (lmpr),a
 		
+		ld hl,0
+		ld (32766),hl
+		ex de,hl
 		ld hl,32768
-		ld de,0
 		ld bc, 24576 + 576 ; screen and room for palette line data
 		
 		LDIR

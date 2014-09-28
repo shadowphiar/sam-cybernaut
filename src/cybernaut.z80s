@@ -581,7 +581,10 @@ MAINLOOP:
 
 				ld a,SCREENPAGE0
 				out (hmpr),a
+				ld (WORKSCREEN),a
 
+				ld hl,0
+				ld (65534),hl
                 ld sp, HMEM_STACK_FRAME
                 ei
 
@@ -662,11 +665,6 @@ frame_being_drawn: equ $+1
 
 
 
-				ld a,16
-				out (clut),a
-
-
-
                 ld hl,(65534)
                 ld a,h
                 or l
@@ -729,12 +727,6 @@ draw_loop_return_address:
 
 
 
-
-
-				xor a
-				out (clut),a
-
-
 EXIT_MAIN_LOOP_VECTOR: equ $+1
                 ld hl,0000
                 ld a,l
@@ -742,9 +734,9 @@ EXIT_MAIN_LOOP_VECTOR: equ $+1
                 jp z, MAINLOOP_LOOP
 
 				di
-				xor a
-				ld (FRAMEVECTOR),a
-				ld (FRAMEVECTOR+1),a
+				ld de,0
+				ld (FRAMEVECTOR),de
+				ld (EXIT_MAIN_LOOP_VECTOR),de
 
                 call SILENCE
 
