@@ -54,8 +54,6 @@ MAINMENU_INTCALLBACK:
 				inc a
 				ld (last_calculated_frame),a    ; signal that we want the screen frame to update + cycle
 				
-				print "BREAK at",$, "KEYBOARD_TABLE=",KEYBOARD_TABLE
-				
 				ld h, KEYBOARD_TABLE/256
 				ld a, (player_space + PLAYER.FIRE_KEYaddr)
 				ld l,a
@@ -75,6 +73,7 @@ mainmenu_startgame:
                 
                 ret
                 
+game_palette:   db     0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
                 
 Start_Game:
 				di
@@ -85,6 +84,9 @@ Start_Game:
 
                 ld a,SCREENPAGE0+96
                 ld (DISPLAYSCREEN),a
+
+
+
 
  
                 ld a,BORDERSCREENOFF
@@ -99,6 +101,12 @@ Start_Game:
                 ld hl,MUSIC.hector.gz
                 call DECODEMUSIC
                 call MUSIC_GOTO_CUSTOM
+
+				ld bc,16
+				ld hl, game_palette
+				ld de,32768+24576
+				ldir
+
 
                 ld a,SCREENPAGE0
                 call COPY_THIS_SCREEN_ONCE
