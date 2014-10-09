@@ -1,15 +1,134 @@
+ds align 256
+DrawTile_LookupT:
+J: equ FOR 12
+ I: equ FOR 16
+ 	dw DRAWtiles.png_{I}_{J}
+ 	db DRAWtiles.png_{I}_{J}PAGE | 32
+ 	ds 1
+ NEXT I
+NEXT J
+
+
+BEGIN_SCREEN:	
+print "BEGIN_SCREEN", $
+				; hl points to level map data
+
+                ld sp, HMEM_STACK_FRAME
+
+				ld de, 0
+				ld (FRAMEVECTOR),de
+
+
+				ld a,BORDERSCREENOFF
+				out (border),a
+
+		;		ei
+					
+				ld ix, drawtiles_loopreturn
+				
+				
+
+				ld e,3
+tiledraw_loop_buffer:
+				ld a,e
+				dec a
+				rla
+				add SCREENPAGE0
+				out (hmpr),a
+
+				ld bc,0
+                ld (65534),bc
+
+				exx
+				ld hl,32768
+				exx
+
+				ld c,11
+tiledraw_loop_y:				
+
+				ld b,16
+tiledraw_loop_x:				
+				ld a,(hl)
+				
+				
+				exx
+				
+				ld c,a
+				xor a
+				rl c
+				rla
+				rl c
+				rla
+				add DrawTile_LookupT/256
+				ld b,a
+								
+				ld a,(bc)
+				ld e,a
+				inc c
+				ld a,(bc)
+				ld d,a
+				inc c
+				ld a,(bc)
+				
+				jp HMEM_SWITCH_LMEM_DRAW  ; SP is background remove stack, DE is routine in page A, HL is HMEM address to draw			
+drawtiles_loopreturn:
+				ld a,l
+				sub 128-8
+				ld l,a
+				exx
+				inc hl
+				djnz tiledraw_loop_x
+				
+				exx
+				ld l,0
+				ld a,h
+				add 8
+				ld h,a
+				exx
+				dec c
+				jr nz, tiledraw_loop_y
+
+				ld a,l
+				sub 16*11
+				ld l,a
+				ld a,h
+				sbc 0
+				ld h,a
+
+				dec e
+				jr nz, tiledraw_loop_buffer		
+
+			  ; draw the whole screen three times
+              ; don't call DUPLICATESCREENDATA, it disables interrupts (and has long LDIRs anyway) which will disrupt music
+                
+                
+				ld hl, GAMEPHYSICS_INTCALLBACK
+				ld (FRAMEVECTOR),hl
+
+				ld a,SCREENPAGE0
+				out (hmpr),a
+
+				ld a,BORDERSCREENON
+				out (border),a
+
+ei
+
+                jp MAINLOOP
+
+
+
+
+GAMEPHYSICS_INTCALLBACK:
+				ld a,(last_calculated_frame)
+				inc a
+				ld (last_calculated_frame),a    ; signal that we want the screen frame to update + cycle
+				ret
+
+
+
 
 
 best_level: db 0
-
-
-
-
-
-
-
-
-
 
 
 

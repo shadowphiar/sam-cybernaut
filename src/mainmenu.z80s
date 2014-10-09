@@ -73,11 +73,9 @@ mainmenu_startgame:
                 
                 ret
                 
-game_palette:   db     0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
-                
+               
 Start_Game:
 				di
-				xor a
 				                
                 xor a
                 ld (NEXTDISPLAYSCREEN),a    ; frame interrupt shouldn't switch VMPR on us until we're doing animations
@@ -85,8 +83,17 @@ Start_Game:
                 ld a,SCREENPAGE0+96
                 ld (DISPLAYSCREEN),a
 
+setup_game_palette_loop:
+				out (hmpr),a
 
+				ld bc,16
+				ld hl, game_palette
+				ld de,32768+24576
+				ldir
 
+				add 2
+				cp SCREENPAGE0+96+6
+				jr c, setup_game_palette_loop
 
  
                 ld a,BORDERSCREENOFF
@@ -102,27 +109,7 @@ Start_Game:
                 call DECODEMUSIC
                 call MUSIC_GOTO_CUSTOM
 
-				ld bc,16
-				ld hl, game_palette
-				ld de,32768+24576
-				ldir
 
+				ld hl, level1
+				jp begin_screen
 
-                ld a,SCREENPAGE0
-                call COPY_THIS_SCREEN_ONCE
-                call DUPLICATESCREENDATA
-                
-
-				ld hl, GAMEPHYSICS_INTCALLBACK
-				ld (FRAMEVECTOR),hl
-
-
-
-                jp MAINLOOP
-
-
-GAMEPHYSICS_INTCALLBACK:
-				ld a,(last_calculated_frame)
-				inc a
-				ld (last_calculated_frame),a    ; signal that we want the screen frame to update + cycle
-				ret

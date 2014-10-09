@@ -35,3 +35,7 @@ ENDIF
 
 
 
+    INC "../_build/tiles.png_15_11.sprite.z80s"
+@PAGE: 		equ tiles.png_15_11ENDPAGE                
+    
+    
