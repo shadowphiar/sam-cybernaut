@@ -71,8 +71,6 @@ ENDOFSCREENFUNCTIONS:
                 ORG  0
                 DUMP CODEPAGE,0
 
-
-
 FRAMEINT:
 			; no need to call SWITCH_HMPR for hmpr changes at frameint time
             ; (unless things are taking so long they might be in screen area!)
@@ -753,27 +751,52 @@ EXIT_MAIN_LOOP_VECTOR: equ $+1
                 INCLUDE "mainmenu.z80s"
 
 game_palette:   db     0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
+
+
+VERSION:		MDAT "../_build/version"
+				db 0
+
  
 level1:		
-    	INCLUDE "../_build/level1.z80s"
+		    	INCLUDE "../_build/level1.z80s"				; could store these compressed, maybe
 
 
-	jp $
+				FONT_SM_ROUTINES: MDAT "../_build/font_sm.o"
+				ds align 256
+		FOR 32,	dw (DRAWfont_sm.png_{FOR}_1 - DRAWfont_sm.png_0_0) + FONT_SM_ROUTINES
+		; repeat lookup table for second row (easiest way to support lower case letters)
+
+
 
 KEYBOARD_TABLE:     ds 9
 STATUS_MESSAGE:     dw 0
 
-            DS 32000-$
 
-            
+				ds align 256
+BLOCK_COLLISION_TABLE: ds 16*11
+
+
+
+
+
+
+			print "KB free in code page sections A/B",(31744-$)/1024
+            DS 31744-$
+FONT_SM:						
+@FONT_ROW: equ FOR 2
+@FONT_COLUMN: equ FOR 32
+				dw (DRAWfont_sm.png_{@FONT_COLUMN}_{@FONT_ROW} - DRAWfont_sm.png_0_0) + FONT_SM_ROUTINES
+NEXT @FONT_COLUMN
+NEXT @FONT_ROW
+				FOR 32, dw (DRAWfont_sm.png_{FOR}_1 - DRAWfont_sm.png_0_0) + FONT_SM_ROUTINES	; repeat second row, easiest way to handle lower case input
+
+ds 64
+LMEM_SWITCH_STACK_FRAME: equ $
 ds 256
 SPRITE_STACK_FRAME_0: equ $
 ds 256
 SPRITE_STACK_FRAME_1: equ $
-            
-ds 6
-LMEM_SWITCH_STACK_FRAME: equ $
-ds 250
+ds 256
 FRAMEINT_STACK_FRAME: equ $            
             
 HMEM_STACK_FRAME: equ 65534

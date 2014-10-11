@@ -28,6 +28,10 @@ MAINMENU:
 
                 call DECODEGZSCREEN
 
+print "STRING", $
+				ld hl, 32768+23552
+    			ld IY, VERSION
+    			call DRAW_STRING
     
 
                 ld a,SCREENPAGE0
@@ -45,9 +49,7 @@ MAINMENU:
 
 
                 jp MAINLOOP
-                
-                
-                
+     
                 
 MAINMENU_INTCALLBACK:                
 				ld a,(last_calculated_frame)

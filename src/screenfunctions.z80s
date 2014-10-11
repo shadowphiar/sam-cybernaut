@@ -215,7 +215,7 @@ JPFRAMEINT:
 				ld a,CODEPAGE | 32
 				out (lmpr),a
 
-				CALL FRAMEINT
+				RST FRAMEINT
 
 LMEM_INTSTORE:	equ $+1
 				ld a,00
@@ -263,6 +263,22 @@ HMEM_SWITCH_LMEM_LDIR:
             out (lmpr),a
             ret
 
+
+
+
+DRAW_STRING:    ; HL = screen address to draw
+                ; IY = 0-terminated string
+                
+                ld a,(iy)
+                and 127
+                sub 32
+                ret c
+                add a,a
+                ld (font_table_offset),a
+font_table_offset: equ $+2                
+                ld IX,(FONT_SM)
+                inc iy
+                JP (IX)
 
 		
 

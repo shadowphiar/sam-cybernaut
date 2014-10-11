@@ -15,6 +15,7 @@ endif
 ;; memory and code configuration
 
 FRAMEINT: equ 0
+FONT_SM: equ 31744
 
 CODEPAGE:       EQU 2
 MUSICPAGE:      EQU 4

@@ -29,8 +29,6 @@ def sam2rgb(p):
     g = bit(3,p)*36 + bit(2,p)*73 + bit(6,p)*146
     b = bit(3,p)*36 + bit(0,p)*73 + bit(4,p)*146
     
-    print p, (r,g,b)
-    
     return (r,g,b)
     
     
@@ -116,7 +114,7 @@ def navigate(sprite,x,y,reverse):
 
 
 
-option_args, file_args = getopt.getopt(sys.argv[1:], 'lr:p:sb:do:x:y:macv:1XYRGqD')
+option_args, file_args = getopt.getopt(sys.argv[1:], 'lr:p:sb:do:x:y:macv:1XYRGqDS')
 
 MAXPALETTE = 16
 # reduce this if some colours are reserved for other use (may be useful to detect black and use default 0)
@@ -148,7 +146,7 @@ BACKGROUNDCLIPPING = False
 DIAGNOSTICS = True
 DRAWLOOPID = False
 
-
+STRINGRETURN = False
 
 for option,value in option_args:
     if option in ['-r']: # restrict
@@ -212,8 +210,13 @@ for option,value in option_args:
         
     if option in ['-D']:
         DRAWLOOPID = True # calculate a single-word identifier for each sprite, autoselecting L/R based on carry flag
+
+    if option in ['-S']:
+        STRINGRETURN = True
     
 BLANKRGB = sam2rgb(BLANKPALETTE)    
+
+print "SPRITEMEMORY is "+str(SPRITEMEMORY)
 
 if (len(palette)==0): 
     palette.append((0,0,0))
@@ -633,9 +636,9 @@ for inputfilename in file_args:
                     sourcecode.append( "        ENDIF")    
 
 
-
                 sourcecode.append( uid+":"  )  
-                sourcecode.append( uid+"PAGE: EQU @-PAGE"  )  
+                if SPRITEMEMORY:
+                    sourcecode.append( uid+"PAGE: EQU @-PAGE"  )  
 
 
 
@@ -847,7 +850,10 @@ for inputfilename in file_args:
                             routine.append( "; routine takes"+str(ts)+"tstates")
                         else:
 
-                            routine.append( "jp (ix)")
+                            if STRINGRETURN:
+                                routine.append( "jp DRAW_STRING")
+                            else:
+                                routine.append( "jp (ix)")
                             routine.append( "; routine takes"+str(ts)+"tstates")
         
                     else:

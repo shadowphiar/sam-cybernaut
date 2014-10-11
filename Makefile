@@ -42,7 +42,7 @@ DATA = _build/menu.png.samscreen.mdat.gz \
 	
 
 
-cybernaut.dsk: $(SOURCE) $(OBJ)  _build/mkdir
+cybernaut.dsk: $(SOURCE) $(OBJ) _build/data.sym _build/mkdir
 	date "+%Y-%m-%d(`git rev-parse --short HEAD`)" > _build/version
 	$(pyz80) -o $@ --importfile=_build/data.sym $<
 
@@ -58,8 +58,8 @@ _build/screenfunctions.obj: src/screenfunctions.z80s src/global.z80s
 
 _build/data.sym: _build/data.obj
 	
-_build/data.obj: src/data.z80s $(DATA) _build/screenfunctions.obj src/global.z80s
-	 $(pyz80) --obj=$@ --importfile=_build/screenfunctions.sym --exportfile=_build/data.sym $<
+_build/data.obj: src/data.z80s $(DATA) _build/font_sm.sym src/global.z80s
+	 $(pyz80) --obj=$@ --importfile=_build/font_sm.sym --exportfile=_build/data.sym $<
 
 
 
@@ -68,6 +68,12 @@ _build/stereotable.o: src/stereotable.z80s
 
 
 
+_build/font_sm.sym: _build/font_sm.o
+_build/font_sm.o: _build/font_sm.png_31_1.sprite.z80s _build/screenfunctions.sym
+	$(pyz80) --obj $@ --importfile=_build/screenfunctions.sym --exportfile=_build/font_sm.sym $<
+
+_build/font_sm.png_31_1.sprite.z80s: graphics/font_sm.png
+	$(sampalette) $(PAL) -m -s -c -a -x 32 -y 2 -b 48 -S -X $<
 
 
 
@@ -108,5 +114,10 @@ _build/ship.png_1_2.sprite.z80s: graphics/ship.png
 
 _build/tiles.png_15_11.sprite.z80s: graphics/tiles.png
 	$(sampalette) $(PAL) -s -c -a -x 16 -y 12 -b 48 $<
+
+
+
+
+
 
 
