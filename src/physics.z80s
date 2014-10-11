@@ -22,7 +22,7 @@ print "BEGIN_SCREEN", $
 				ld a,BORDERSCREENOFF
 				out (border),a
 
-		;		ei
+				ei
 					
 				ld ix, drawtiles_loopreturn
 				
