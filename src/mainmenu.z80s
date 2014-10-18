@@ -26,13 +26,7 @@ MAINMENU:
                 ld a, LOGOPAGE
                 ld hl, LOGOADDR
 
-                call DECODEGZSCREEN
-
-print "STRING", $
-				ld hl, 32768+23552
-    			ld IY, VERSION
-    			call DRAW_STRING
-    
+                call DECODEGZSCREEN    
 
                 ld a,SCREENPAGE0
                 call COPY_THIS_SCREEN_ONCE
@@ -115,3 +109,48 @@ setup_game_palette_loop:
 				ld hl, level1
 				jp begin_screen
 
+
+
+
+
+
+;    DS ALIGN 16
+;DRAW_STARS_ROUTINE_ID: EQU (2*$) + (@-PAGE)
+;    DS (@-PAGE)/2
+
+
+				   ;1234567890123456
+MENU_TEXT_STATIC:
+				dm "FIRE to start"
+				db 13
+				dm "ESC for menu"
+				db 0   
+MENU_TEXT_ROLLING:
+				dm "MNEMOTECH"
+				db 0
+				dm "in association"
+				db 13
+				dm "with"
+				db 0
+				dm "SILVER SWORD"
+				db 0
+				dm "proudly presents"
+				db 0
+				dm "CYBERNAUT I."
+				db 13,13
+				dm "The Fighting"
+				db 13
+				dm "Machine"
+				db 0
+				MDAT "../_build/version"
+				db 0
+				dm "Programming by"
+				db 13
+				dm "Andrew Collier"
+				db 0
+				dm "Graphics by"
+				db 13
+				dm "Josef Prokes"
+				db 0
+				
+				

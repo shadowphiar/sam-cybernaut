@@ -270,6 +270,7 @@ DRAW_STRING:    ; HL = screen address to draw
                 ; IY = 0-terminated string
                 
                 ld a,(iy)
+                inc iy
                 and 127
                 sub 32
                 ret c
@@ -277,7 +278,6 @@ DRAW_STRING:    ; HL = screen address to draw
                 ld (font_table_offset),a
 font_table_offset: equ $+2                
                 ld IX,(FONT_SM)
-                inc iy
                 JP (IX)
 
 		

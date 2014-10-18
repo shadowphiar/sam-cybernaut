@@ -43,7 +43,8 @@ DATA = _build/menu.png.samscreen.mdat.gz \
 
 
 cybernaut.dsk: $(SOURCE) $(OBJ) _build/data.sym _build/mkdir
-	date "+%Y-%m-%d(`git rev-parse --short HEAD`)" > _build/version
+	date +%Y-%m-%d > _build/version
+	echo "(`git rev-parse --short HEAD`)" >> _build/version
 	$(pyz80) -o $@ --importfile=_build/data.sym $<
 
 

@@ -172,6 +172,28 @@ get_keyboard_loop:
                 
                 JR NZ, get_keyboard_loop
 
+
+                ld a, (KEYBOARD_TABLE + 2)
+                and 0x80
+                jr nz, no_toggle_timing_display
+ 
+                ld a,(show_timing_info)
+                bit 1,a
+                jr nz, done_toggle_timing_display
+
+                xor 1
+                or 2
+                ld (show_timing_info),a
+                jr done_toggle_timing_display
+ 
+ 
+ 
+no_toggle_timing_display: 
+                ld a,(show_timing_info)
+                and 1
+                ld (show_timing_info),a
+done_toggle_timing_display:
+
                 LD A,96
                 OUT (clut),A
 
@@ -455,6 +477,10 @@ FRAMEHMPRSTORE: EQU $+1
 
                 ; and just to emphasize that point, we'll enable interrupts here
                 EI
+                
+                ld hl,(SPRITE_LIST_FILL_REQUEST)
+                ld (SPRITE_LIST_HEAD_POINTER),hl
+
 
 				LD HL,(FRAMEVECTOR)
 				LD A,H
@@ -462,6 +488,9 @@ FRAMEHMPRSTORE: EQU $+1
 FRAMEVECTOR: EQU $+1
 				CALL NZ, 0000
 				; do things on frame interrupts. This depends on whether we are in game loop, menu waiting, or whatever
+
+				ld hl,(SPRITE_LIST_HEAD_POINTER)
+				ld (hl),0
 
 
                 POP IX
@@ -587,7 +616,16 @@ MAINLOOP:
 
 				ld hl,0
 				ld (65534),hl
+				ld (SPRITE_LIST_FRAME_0),hl
+				ld (SPRITE_LIST_FRAME_0+2),hl
+				ld (SPRITE_LIST_FRAME_1),hl
+				ld (SPRITE_LIST_FRAME_1+2),hl
+
                 ld sp, HMEM_STACK_FRAME
+                
+	            ld hl,SPRITE_LIST_FRAME_0
+                ld (SPRITE_LIST_FILL_REQUEST),hl
+                
                 ei
 
                 ld a,BORDERSCREENON
@@ -698,17 +736,28 @@ no_drawvector_call:
 
 				ld IX, draw_loop_return_address
 
-				ld h, 96
-				ld l, 128
-				ld de, ship.png_0_0ID			; get HL, DE as if from a list of sprites provided by last FRAMEINT
+	print "BREAK", $
 
-				ld a,(frame_being_drawn)
-				and 127
-				add 64	; temp hack
-				ld l,a
+SPRITE_LIST_FILL_REQUEST: equ $+2
+				ld IY, SPRITE_LIST_FRAME_0
+
+				ld a,IYh
+				xor (SPRITE_LIST_FRAME_0/256) ^ (SPRITE_LIST_FRAME_1/256)
+				ld (SPRITE_LIST_FILL_REQUEST+1),a
+
+draw_loop_return_address:
+	
+				ld e,(IY+0)
+				ld d,(IY+1)
+				ld l,(IY+2)
+				ld h,(IY+3)
 				
+				ld bc,4
+				add IY,bc
+					
 				ld a,e
 				and 31
+				jr z, finished_drawing_sprites
 				or 32
 				
 				rr d
@@ -722,8 +771,8 @@ no_drawvector_call:
 
 
 
-draw_loop_return_address:
 
+finished_drawing_sprites:
 				ld (65534), SP
 
 
@@ -746,6 +795,27 @@ EXIT_MAIN_LOOP_VECTOR: equ $+1
 
 
 
+ADD_SPRITE_TO_CURRENT_LIST:			; call with BC = routine ID, and DE = 192/256 pixel location (uses HL)
+
+SPRITE_LIST_HEAD_POINTER: equ $+1
+				ld hl,0000
+				ld (hl),c
+				inc l
+				ld (hl),b
+				inc l
+				ld (hl),e
+				inc l
+				ld (hl),d
+				inc hl
+				ld (SPRITE_LIST_HEAD_POINTER),hl
+				
+				ret
+
+
+
+
+
+
                 INCLUDE "physics.z80s"
                 INCLUDE "config.z80s"
                 INCLUDE "mainmenu.z80s"
@@ -753,8 +823,6 @@ EXIT_MAIN_LOOP_VECTOR: equ $+1
 game_palette:   db     0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
 
 
-VERSION:		MDAT "../_build/version"
-				db 0
 
  
 level1:		
@@ -793,9 +861,9 @@ NEXT @FONT_ROW
 ds 64
 LMEM_SWITCH_STACK_FRAME: equ $
 ds 256
-SPRITE_STACK_FRAME_0: equ $
+SPRITE_LIST_FRAME_0: equ $
 ds 256
-SPRITE_STACK_FRAME_1: equ $
+SPRITE_LIST_FRAME_1: equ $
 ds 256
 FRAMEINT_STACK_FRAME: equ $            
             

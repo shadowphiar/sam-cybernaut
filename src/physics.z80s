@@ -1,12 +1,20 @@
+	include "tile_properties.z80s"
+
 ds align 256
 DrawTile_LookupT:
 J: equ FOR 12
  I: equ FOR 16
  	dw DRAWtiles.png_{I}_{J}
  	db DRAWtiles.png_{I}_{J}PAGE | 32
- 	ds 1
+ 	db tile_properties_{I+(16*J)}
  NEXT I
 NEXT J
+
+
+
+
+
+
 
 
 BEGIN_SCREEN:	
@@ -42,7 +50,6 @@ tiledraw_loop_buffer:
 				exx
 				ld hl,32768
 				exx
-
 				ld c,11
 tiledraw_loop_y:				
 
@@ -61,7 +68,7 @@ tiledraw_loop_x:
 				rla
 				add DrawTile_LookupT/256
 				ld b,a
-								
+				
 				ld a,(bc)
 				ld e,a
 				inc c
@@ -102,6 +109,45 @@ drawtiles_loopreturn:
               ; don't call DUPLICATESCREENDATA, it disables interrupts (and has long LDIRs anyway) which will disrupt music
                 
                 
+                
+                
+                
+; then loop again to fill in the physics tables
+; (shame not to put this in the other loop, but we don't need to execute it three times)                
+                
+                ld de, BLOCK_COLLISION_TABLE
+                
+                exx
+                ld b, 16*11
+setup_COLLISION_TABLE_loop:
+                exx
+                
+ 				ld c,(hl)
+ 				inc l
+				xor a
+				scf
+				rl c
+				rla
+				scf
+				rl c
+				rla
+				add DrawTile_LookupT/256
+				ld b,a
+               
+                ld a,(bc)
+                ld (de),a
+                inc e
+                
+                exx
+                djnz setup_COLLISION_TABLE_loop
+                
+                
+                
+                
+                
+                
+                
+                
 				ld hl, GAMEPHYSICS_INTCALLBACK
 				ld (FRAMEVECTOR),hl
 
@@ -116,13 +162,142 @@ ei
                 jp MAINLOOP
 
 
-
+HORIZONTAL_IMPULSE: equ 500
+VERTICAL_IMPULSE:   equ 1100
+GRAVITY_IMPULSE:	equ 350
 
 GAMEPHYSICS_INTCALLBACK:
 				ld a,(last_calculated_frame)
 				inc a
 				ld (last_calculated_frame),a    ; signal that we want the screen frame to update + cycle
+
+
+				
+
+				ld IX, PLAYER_SPACE
+
+				ld l,(IX+ PLAYER.xspeed)
+				ld h,(IX+ PLAYER.xspeedh)
+
+
+				ld d, KEYBOARD_TABLE/256
+				ld e, (IX + PLAYER.LEFT_KEYaddr)
+				ld a,(de)
+				and (IX + PLAYER.LEFT_KEYmask)
+				jr nz, no_left_impulse
+				
+				ld bc, - HORIZONTAL_IMPULSE
+				add hl,bc
+
+no_left_impulse:
+
+				ld e, (IX + PLAYER.RIGHT_KEYaddr)
+				ld a,(de)
+				and (IX + PLAYER.RIGHT_KEYmask)
+				jr nz, no_right_impulse
+				
+				ld bc, HORIZONTAL_IMPULSE
+				add hl,bc
+			
+no_right_impulse:
+
+							; dampening
+				sra h
+				rr l
+					
+				
+				ld (IX+ PLAYER.xspeed),l
+				ld (IX+ PLAYER.xspeedh),h
+
+				ld e,(IX+ PLAYER.x)
+				ld d,(IX+ PLAYER.xh)
+				
+				add hl,de
+				
+				set 0,l	; this is a bit of a hack - after moving left, divisions can never reduce speed below -1.
+						; this is a fairly insignificant reduction in precision, but stops us drifting to the left 1 pixel every 5 seconds
+				
+				ld (IX+ PLAYER.x),l
+				ld (IX+ PLAYER.xh),h
+
+
+
+
+				ld l,(IX+ PLAYER.yspeed)
+				ld h,(IX+ PLAYER.yspeedh)
+
+				ld d, KEYBOARD_TABLE/256
+				ld e, (IX + PLAYER.UP_KEYaddr)
+				ld a,(de)
+				and (IX + PLAYER.UP_KEYmask)
+				jr nz, no_vertical_impulse
+				
+				ld bc, - VERTICAL_IMPULSE
+				add hl,bc
+
+no_vertical_impulse:
+
+				ld bc, GRAVITY_IMPULSE
+				add hl,bc
+				
+							; dampening
+				sra h
+				rr l
+
+				ld (IX+ PLAYER.yspeed),l
+				ld (IX+ PLAYER.yspeedh),h
+
+				ld e,(IX+ PLAYER.y)
+				ld d,(IX+ PLAYER.yh)
+				
+				add hl,de
+				
+				ld a,h
+				cp 176
+				jr c, +@
+				ld h,176
+				@:
+
+
+				ld (IX+ PLAYER.y),l
+				ld (IX+ PLAYER.yh),h
+
+
+
+
+
+
+
+
+
+
+
+
+
+				
+				ld e, (IX + PLAYER.xh)
+				ld d, (IX + PLAYER.yh)
+				
+				bit 7,(IX + PLAYER.xspeedh)
+				jr nz, ship_pointing_left
+				ld bc, ship.png_0_0ID
+				jr +@
+ship_pointing_left:
+				ld bc, ship.png_1_0ID
+@:
+				call ADD_SPRITE_TO_CURRENT_LIST ; bc=routine, de=location (uses HL)
+
+
 				ret
+
+
+
+
+
+
+
+
+
 
 
 
