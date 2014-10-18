@@ -78,7 +78,7 @@ _build/font_sm.png_31_1.sprite.z80s: graphics/font_sm.png
 
 
 
-_build/level1.z80s: maps/level1.json 
+_build/level1.z80s: maps/level1.json scripts/parselevel.py
 	 scripts/parselevel.py < $< > $@
 
 

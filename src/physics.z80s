@@ -12,10 +12,7 @@ NEXT J
 
 
 
-
-
-
-
+    
 
 BEGIN_SCREEN:	
 print "BEGIN_SCREEN", $
@@ -34,7 +31,31 @@ print "BEGIN_SCREEN", $
 					
 				ld ix, drawtiles_loopreturn
 				
+				ld a,(hl)
+				inc l
+;				ld (current_level_width),a
+				ld a,(hl)
+				inc l
+; there's less of a case that this is useful				ld (current_level_height),a
+				ld e,(hl)
+				inc l
+				ld d,(hl)
+				inc l
+				ld (current_level_offset),de
+
+				ld a,(hl)
+				inc l
+				ld (PLAYER_SPACE + PLAYER.yh),a
+				ld a,(hl)
+				inc l
+				ld (PLAYER_SPACE + PLAYER.xh),a
+				xor a
+				ld (PLAYER_SPACE + PLAYER.y),a
+				ld (PLAYER_SPACE + PLAYER.x),a
 				
+current_level_offset: equ $+1
+				ld hl,(0000)
+							
 
 				ld e,3
 tiledraw_loop_buffer:
@@ -252,7 +273,7 @@ no_vertical_impulse:
 				
 				add hl,de
 				
-				ld a,h
+				ld a,h			; emergency screen safety
 				cp 176
 				jr c, +@
 				ld h,176
