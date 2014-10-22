@@ -31,11 +31,13 @@ ENDIF
 
 
 	INC "../_build/ship.png_1_2.sprite.z80s"
-@PAGE: 		equ ship.png_1_2ENDPAGE                
+@PAGE: 		   equ ship.png_1_2ENDPAGE                
 
 
 
     INC "../_build/tiles.png_15_11.sprite.z80s"
-@PAGE: 		equ tiles.png_15_11ENDPAGE                
+@PAGE: 	   	   equ tiles.png_15_11ENDPAGE                
     
-    
+    INC "../_build/explosion.png_7.sprite.z80s"
+@PAGE: 		   equ explosion.png_7ENDPAGE                
+

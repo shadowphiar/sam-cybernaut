@@ -39,6 +39,7 @@ DATA = _build/menu.png.samscreen.mdat.gz \
 	_build/maaora.32k.gz \
 	_build/ship.png_1_2.sprite.z80s \
 	_build/tiles.png_15_11.sprite.z80s \
+	_build/explosion.png_7.sprite.z80s \
 	
 
 
@@ -105,11 +106,11 @@ _build/hector.32k.gz: music/music.dsk
 
 
 
-
-
 _build/ship.png_1_2.sprite.z80s: graphics/ship.png
 	$(sampalette) $(PAL) -s -D -1 -b 48 -x 2 -y 3 $<
 
+_build/explosion.png_7.sprite.z80s: graphics/explosion.png
+	$(sampalette) $(PAL) -s -D -1 -b 0 -x 8 $<
 
 
 

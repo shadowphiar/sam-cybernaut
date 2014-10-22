@@ -232,6 +232,8 @@ no_right_impulse:
 				
 				ld (IX+ PLAYER.xspeed),l
 				ld (IX+ PLAYER.xspeedh),h
+				
+				ld b,h
 
 				ld e,(IX+ PLAYER.xl)
 				ld d,(IX+ PLAYER.x)
@@ -240,6 +242,80 @@ no_right_impulse:
 				
 				set 0,l	; this is a bit of a hack - after moving left, divisions can never reduce speed below -1.
 						; this is a fairly insignificant reduction in precision, but stops us drifting to the left 1 pixel every 5 seconds
+
+
+
+
+
+
+
+
+
+
+
+				ld a,h
+				
+				bit 7,b
+				jr nz, check_blocked_left
+				
+				add SHIP_WIDTH-1
+check_blocked_left:
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				ld e,a
+				
+				ld a,(IX+ PLAYER.y)
+				ld c,a
+				and 0xf0
+				or e
+				ld e,a
+				ld d, BLOCK_COLLISION_TABLE/256
+								
+				ld  a,(de)
+				and  TILE_COLLIDES
+				jr nz,blocked_horizontal
+								
+				ld a,c
+				dec a
+				and 0x0f
+				inc a
+				sub SHIP_HEIGHT
+				jr nc, not_blocked_horizontal
+				
+				ld a,e
+				add 16
+				ld e,a
+
+
+				ld a,(de)
+				and  TILE_COLLIDES
+				jr z,not_blocked_horizontal
+
+blocked_horizontal:
+print $
+				ld a,e
+				rla
+				rla
+				rla
+				rla
+				and 0xf0
+				
+				bit 7,b
+				jr nz, blocked_left
+				sub SHIP_WIDTH
+				jr set_ship_horizontal_position
+blocked_left:
+				add 16
+set_ship_horizontal_position: 
+				ld h,a
+				ld l,1
+
+
+
+not_blocked_horizontal:
 				
 				ld (IX+ PLAYER.xl),l
 				ld (IX+ PLAYER.x),h
@@ -278,12 +354,13 @@ no_vertical_impulse:
 				
 				add hl,de
 				
-				bit 7,b
-				jr nz, check_blocked_upwards				
-				
-check_blocked_downwards:				
 				ld a,h
-				add SHIP_HEIGHT
+				
+				bit 7,b
+				jr nz, check_blocked_upwards
+				
+				add SHIP_HEIGHT-1
+check_blocked_upwards:
 				and 0xf0
 				ld e,a
 				
@@ -298,42 +375,46 @@ check_blocked_downwards:
 				ld e,a
 				ld d, BLOCK_COLLISION_TABLE/256
 				
+				
 				ld  a,(de)
 				and  TILE_COLLIDES
-				jr nz,blocked_downwards
+				jr nz,blocked_vertical
 				
 				inc e
+
+
 				ld a,(de)
 				and  TILE_COLLIDES
-				jr nz,blocked_downwards
+				jr nz,blocked_vertical
 				
 				ld a,c
 				and 0x0f
-				sub SHIP_WIDTH-16
-				jr c, not_blocked_downwards
+				sub SHIP_WIDTH-15
+				jr c, not_blocked_vertical
 				
 				inc e
+
+
 				ld a,(de)
 				and  TILE_COLLIDES
-				jr z,not_blocked_downwards
+				jr z,not_blocked_vertical
 
-blocked_downwards:
+blocked_vertical:
 				ld a,e
 				and 0xf0
+				bit 7,b
+				jr nz, blocked_above
 				sub SHIP_HEIGHT
+				jr set_ship_vertical_position
+blocked_above:
+				add 16
+set_ship_vertical_position: 
 				ld h,a
-				xor a
-				ld l,a
-				
-not_blocked_downwards:
+				ld l,1
+not_blocked_vertical:
 
 
 
-
-check_blocked_upwards:
-				
-
-				
 
 				ld a,h			; emergency screen safety
 				cp 176
@@ -342,12 +423,6 @@ check_blocked_upwards:
 				@:
 				ld (IX+ PLAYER.yl),l
 				ld (IX+ PLAYER.y),h
-
-
-
-
-
-
 
 
 
@@ -370,14 +445,6 @@ ship_pointing_left:
 
 
 				ret
-
-
-
-
-
-
-
-
 
 
 
