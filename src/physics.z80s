@@ -187,6 +187,9 @@ HORIZONTAL_IMPULSE: equ 500
 VERTICAL_IMPULSE:   equ 1100
 GRAVITY_IMPULSE:	equ 350
 
+SHIP_HEIGHT: equ 16
+SHIP_WIDTH: equ 24
+
 GAMEPHYSICS_INTCALLBACK:
 				ld a,(last_calculated_frame)
 				inc a
@@ -268,18 +271,75 @@ no_vertical_impulse:
 				ld (IX+ PLAYER.yspeed),l
 				ld (IX+ PLAYER.yspeedh),h
 
+				ld b,h
+
 				ld e,(IX+ PLAYER.y)
 				ld d,(IX+ PLAYER.yh)
 				
 				add hl,de
 				
+				bit 7,b
+				jr nz, check_blocked_upwards				
+				
+check_blocked_downwards:				
+				ld a,h
+				add SHIP_HEIGHT
+				and 0xf0
+				ld e,a
+				
+				ld a,(IX+ PLAYER.xh)
+				ld c,a
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				or e
+				ld e,a
+				ld d, BLOCK_COLLISION_TABLE/256
+				
+				ld  a,(de)
+				and  TILE_COLLIDES
+				jr nz,blocked_downwards
+				
+				inc e
+				ld a,(de)
+				and  TILE_COLLIDES
+				jr nz,blocked_downwards
+				
+				ld a,c
+				and 0x0f
+				sub SHIP_WIDTH-16
+				jr c, not_blocked_downwards
+				
+				inc e
+				ld a,(de)
+				and  TILE_COLLIDES
+				jr z,not_blocked_downwards
+
+blocked_downwards:
+				ld a,e
+				and 0xf0
+				sub SHIP_HEIGHT
+				ld h,a
+				xor a
+				ld l,a
+				
+not_blocked_downwards:
+
+
+
+
+check_blocked_upwards:
+				
+
+				
+
 				ld a,h			; emergency screen safety
 				cp 176
 				jr c, +@
 				ld h,176
 				@:
-
-
 				ld (IX+ PLAYER.y),l
 				ld (IX+ PLAYER.yh),h
 
