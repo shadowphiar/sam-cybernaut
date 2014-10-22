@@ -31,6 +31,7 @@ SOURCE = src/cybernaut.z80s  \
 		src/physics.z80s \
 		src/config.z80s \
 		src/mainmenu.z80s \
+		src/menu_star_effect.z80s \
 		_build/level1.z80s \
 
 

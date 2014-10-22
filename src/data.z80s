@@ -41,3 +41,4 @@ ENDIF
     INC "../_build/explosion.png_7.sprite.z80s"
 @PAGE: 		   equ explosion.png_7ENDPAGE                
 
+DATAENDPAGE: equ @PAGE

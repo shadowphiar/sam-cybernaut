@@ -736,8 +736,6 @@ no_drawvector_call:
 
 				ld IX, draw_loop_return_address
 
-	print "BREAK", $
-
 SPRITE_LIST_FILL_REQUEST: equ $+2
 				ld IY, SPRITE_LIST_FRAME_0
 
@@ -766,6 +764,8 @@ draw_loop_return_address:
 				scf
 				rr h
 				rr l
+
+print "Main loop draw fn", $
 
 				jp HMEM_SWITCH_LMEM_DRAW ; SP is background remove stack, DE is routine in page A, HL is HMEM address to draw
 
@@ -924,4 +924,12 @@ next musicsoft_left
 
 
                 DUMP DATASTARTPAGE,0
+                org 0
                 MDAT "../_build/data.obj"
+@PAGE: 	equ DATAENDPAGE
+
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
+                INCLUDE "menu_star_effect.z80s"

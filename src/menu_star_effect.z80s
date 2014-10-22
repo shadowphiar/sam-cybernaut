@@ -1,0 +1,194 @@
+    DS ALIGN 16
+MENU_STAR_EFFECT_ID: EQU (2*$) + (@-PAGE)
+    DS (@-PAGE)/2
+
+DRAW_MENU_STAR_EFFECT:
+DRAW_MENU_STAR_EFFECTPAGE: EQU @-PAGE
+    ld bc,127*256
+    
+    ld (DRAW_MENU_STAR_EFFECT_IYSTORE),iy
+    ld iy, STARSTABLE
+stars_draw:    
+    
+    ld l,(iy+0)
+    ld h,(iy+1)
+
+    ld a,h
+    sub 96
+    jr c, star_going_up
+    add a
+    add l
+    ld l,a
+    ld a,h
+    adc 0
+    ld h,a
+    cp 192
+    jr c, set_star_v
+    jr reset_star
+    
+star_going_up: 
+    neg
+    add a
+    add l
+    ld l,a
+    ld a,h
+    sbc 0
+    ld h,a
+    jr c, reset_star
+   
+    
+set_star_v:    
+    ld (iy+0),l
+    ld (iy+1),h
+
+    
+    
+    
+    
+    
+    
+    ld l,(iy+2)
+    ld h,(iy+3)
+
+    ld a,h
+    sub 128
+    jr c, star_going_left
+    add a
+    add l
+    ld l,a
+    ld a,h
+    adc 0
+    ld h,a
+    jr nc, set_star_h
+
+reset_star:
+    ld h,starsintable/256
+    ld d,STARSTABLE/256
+    ld e,l
+    ld a,(de)
+    and 15
+    add 7
+    
+    add (hl)
+    add 96
+
+    ld (iy+1),a
+    ld a,l
+    add 64
+    ld l,a
+    ld a,(hl)
+    add 128
+    ld h,a
+    
+    jr set_star_h
+    
+star_going_left: 
+    neg
+    add a
+    add l
+    ld l,a
+    ld a,h
+    sbc 0
+    ld h,a
+    jr c, reset_star
+    jr z, reset_star
+    
+set_star_h:    
+    ld (iy+2),l
+    ld (iy+3),h
+
+
+
+
+
+    ld l,h
+    ld h,(iy+1)
+    
+    ld a,l
+    cp 64 
+    jr c, stargood
+    cp 192
+    jr nc,stargood
+    ld a,h
+    cp 8
+    jr c,stargood
+    cp 185
+    jr c, skipdrawingstar
+    
+    
+stargood:    
+    ld a,h
+    scf
+    rra
+    rr l
+    ld h,a
+    
+    jr c, star_right
+    ld a,(hl)
+    or a
+    jr nz, skipdrawingstar
+
+    inc c
+    push hl
+    ld (hl),0x30
+    jr skipdrawingstar
+
+star_right:
+    ld a,(hl)
+    or a
+    jr nz, skipdrawingstar
+
+    inc c
+    push hl
+    ld (hl),0x03
+
+
+skipdrawingstar:
+    ld de,4
+    add iy,de
+
+    dec b
+    jp nz,stars_draw
+    
+    
+    ld b,c
+    push bc
+
+    ld de,REMOVE_MENU_STAR_EFFECT
+    push de
+    ld a, REMOVE_MENU_STAR_EFFECTPAGE | 32
+    push af
+    ld de, HMEM_SWITCH_LMEM_REMOVE
+    push de
+
+DRAW_MENU_STAR_EFFECT_IYSTORE: equ $+2
+    ld IY,0000
+    
+    jp HMEM_SWITCH_LMEM_DRAW_RETURN
+
+REMOVE_MENU_STAR_EFFECT:
+REMOVE_MENU_STAR_EFFECTPAGE: EQU @-PAGE
+
+    pop bc
+    
+    ld a,b
+    or a
+    ret z
+    xor a
+
+starpoploop:    
+    pop hl
+    ld (hl),a
+    djnz starpoploop
+    
+    
+    ret
+
+
+ds align 256
+starsintable: for 256, db 63.0*sin(FOR * pi * 2.0 / 256.0)
+STARSTABLE:        for 256, db (random()*(255)), (random()*(191)), (random()*(255)), (random()*(255))
+
+
+
+
