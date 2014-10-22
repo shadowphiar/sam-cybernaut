@@ -45,13 +45,13 @@ print "BEGIN_SCREEN", $
 
 				ld a,(hl)
 				inc l
-				ld (PLAYER_SPACE + PLAYER.yh),a
+				ld (PLAYER_SPACE + PLAYER.y),a
 				ld a,(hl)
 				inc l
-				ld (PLAYER_SPACE + PLAYER.xh),a
-				xor a
-				ld (PLAYER_SPACE + PLAYER.y),a
 				ld (PLAYER_SPACE + PLAYER.x),a
+				xor a
+				ld (PLAYER_SPACE + PLAYER.yl),a
+				ld (PLAYER_SPACE + PLAYER.xl),a
 				
 current_level_offset: equ $+1
 				ld hl,(0000)
@@ -233,16 +233,16 @@ no_right_impulse:
 				ld (IX+ PLAYER.xspeed),l
 				ld (IX+ PLAYER.xspeedh),h
 
-				ld e,(IX+ PLAYER.x)
-				ld d,(IX+ PLAYER.xh)
+				ld e,(IX+ PLAYER.xl)
+				ld d,(IX+ PLAYER.x)
 				
 				add hl,de
 				
 				set 0,l	; this is a bit of a hack - after moving left, divisions can never reduce speed below -1.
 						; this is a fairly insignificant reduction in precision, but stops us drifting to the left 1 pixel every 5 seconds
 				
-				ld (IX+ PLAYER.x),l
-				ld (IX+ PLAYER.xh),h
+				ld (IX+ PLAYER.xl),l
+				ld (IX+ PLAYER.x),h
 
 
 
@@ -273,8 +273,8 @@ no_vertical_impulse:
 
 				ld b,h
 
-				ld e,(IX+ PLAYER.y)
-				ld d,(IX+ PLAYER.yh)
+				ld e,(IX+ PLAYER.yl)
+				ld d,(IX+ PLAYER.y)
 				
 				add hl,de
 				
@@ -287,7 +287,7 @@ check_blocked_downwards:
 				and 0xf0
 				ld e,a
 				
-				ld a,(IX+ PLAYER.xh)
+				ld a,(IX+ PLAYER.x)
 				ld c,a
 				rra
 				rra
@@ -340,8 +340,8 @@ check_blocked_upwards:
 				jr c, +@
 				ld h,176
 				@:
-				ld (IX+ PLAYER.y),l
-				ld (IX+ PLAYER.yh),h
+				ld (IX+ PLAYER.yl),l
+				ld (IX+ PLAYER.y),h
 
 
 
@@ -356,8 +356,8 @@ check_blocked_upwards:
 
 
 				
-				ld e, (IX + PLAYER.xh)
-				ld d, (IX + PLAYER.yh)
+				ld e, (IX + PLAYER.x)
+				ld d, (IX + PLAYER.y)
 				
 				bit 7,(IX + PLAYER.xspeedh)
 				jr nz, ship_pointing_left
@@ -390,10 +390,10 @@ best_level: db 0
 
 
 
-PLAYER.X: equ 0
-PLAYER.Xh: equ 1
-PLAYER.Y: equ 2
-PLAYER.Yh: equ 3
+PLAYER.Xl: equ 0
+PLAYER.X: equ 1
+PLAYER.Yl: equ 2
+PLAYER.y: equ 3
 PLAYER.xspeed: equ 4
 PLAYER.xspeedh: equ 5
 PLAYER.yspeed: equ 6
