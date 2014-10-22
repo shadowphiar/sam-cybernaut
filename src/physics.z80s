@@ -29,11 +29,10 @@ print "BEGIN_SCREEN", $
 
 				ei
 					
-				ld ix, drawtiles_loopreturn
 				
 				ld a,(hl)
 				inc l
-;				ld (current_level_width),a
+				ld (current_level_width),a
 				ld a,(hl)
 				inc l
 ; there's less of a case that this is useful				ld (current_level_height),a
@@ -52,7 +51,12 @@ print "BEGIN_SCREEN", $
 				xor a
 				ld (PLAYER_SPACE + PLAYER.yl),a
 				ld (PLAYER_SPACE + PLAYER.xl),a
+
+SWITCH_SCREEN_THREAD: print "SWITCH_SCREEN_THREAD",$
 				
+				ld ix, drawtiles_loopreturn
+
+
 current_level_offset: equ $+1
 				ld hl,(0000)
 							
@@ -144,7 +148,7 @@ setup_COLLISION_TABLE_loop:
                 exx
                 
  				ld c,(hl)
- 				inc l
+ 				inc hl
 				xor a
 				scf
 				rl c
@@ -178,7 +182,7 @@ setup_COLLISION_TABLE_loop:
 				ld a,BORDERSCREENON
 				out (border),a
 
-ei
+				ei
 
                 jp MAINLOOP
 
@@ -259,7 +263,12 @@ no_right_impulse:
 				jr nz, check_blocked_left
 				
 				add SHIP_WIDTH-1
+				jp c, switch_screen_right
+				jr @+
 check_blocked_left:
+				cp 240
+				jp nc, switch_screen_left
+	@:
 				rra
 				rra
 				rra
@@ -360,7 +369,14 @@ no_vertical_impulse:
 				jr nz, check_blocked_upwards
 				
 				add SHIP_HEIGHT-1
+				cp 176
+				jp nc, switch_screen_down
+				jr @+
+				
 check_blocked_upwards:
+				cp 192
+				jr nc, switch_screen_up
+	@:
 				and 0xf0
 				ld e,a
 				
@@ -449,6 +465,71 @@ ship_pointing_left:
 
 
 
+
+
+switch_screen_down:
+				
+				ld hl,(current_level_offset)
+				
+current_level_width: equ $+1
+				ld a,0
+				add a
+				add l
+				ld l,a
+				ld (current_level_offset),hl
+				
+				xor a
+				ld (IX + PLAYER.y),a
+
+				ld hl, SWITCH_SCREEN_THREAD
+				ld (EXIT_MAIN_LOOP_VECTOR), hl
+                ret
+                
+switch_screen_up:
+				
+				ld hl,(current_level_offset)
+				
+				ld a,(current_level_width)
+				add a
+				neg
+				add l
+				ld l,a
+				ld (current_level_offset),hl
+				
+				ld a,176-SHIP_HEIGHT
+				ld (IX + PLAYER.y),a
+
+				ld hl, SWITCH_SCREEN_THREAD
+				ld (EXIT_MAIN_LOOP_VECTOR), hl
+                ret
+ 
+switch_screen_left:
+				
+				ld hl,(current_level_offset)
+				dec l
+				dec l
+				ld (current_level_offset),hl
+				
+				ld a,-SHIP_WIDTH
+				ld (IX + PLAYER.x),a
+
+				ld hl, SWITCH_SCREEN_THREAD
+				ld (EXIT_MAIN_LOOP_VECTOR), hl
+                ret
+ 
+switch_screen_right:
+				
+				ld hl,(current_level_offset)
+				inc l
+				inc l
+				ld (current_level_offset),hl
+				
+				xor a
+				ld (IX + PLAYER.x),a
+
+				ld hl, SWITCH_SCREEN_THREAD
+				ld (EXIT_MAIN_LOOP_VECTOR), hl
+                ret
 
 
 best_level: db 0

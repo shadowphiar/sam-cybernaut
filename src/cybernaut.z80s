@@ -784,12 +784,9 @@ EXIT_MAIN_LOOP_VECTOR: equ $+1
                 or h
                 jp z, MAINLOOP_LOOP
 
-				di
 				ld de,0
 				ld (FRAMEVECTOR),de
 				ld (EXIT_MAIN_LOOP_VECTOR),de
-
-                call SILENCE
 
                 JP (HL)
 

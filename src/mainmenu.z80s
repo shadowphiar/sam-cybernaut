@@ -78,6 +78,7 @@ mainmenu_startgame:
                
 Start_Game:
 				di
+				call SILENCE
 				                
                 xor a
                 ld (NEXTDISPLAYSCREEN),a    ; frame interrupt shouldn't switch VMPR on us until we're doing animations

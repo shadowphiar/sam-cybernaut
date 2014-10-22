@@ -99,10 +99,10 @@ tile_properties_93: equ  TILE_COLLIDES
 tile_properties_94: equ  TILE_COLLIDES
 tile_properties_95: equ  TILE_COLLIDES
 tile_properties_96: equ  TILE_COLLIDES
-tile_properties_97: equ  0
-tile_properties_98: equ  0
-tile_properties_99: equ  0
-tile_properties_100: equ 0
+tile_properties_97: equ  TILE_COLLIDES
+tile_properties_98: equ  TILE_COLLIDES
+tile_properties_99: equ  TILE_COLLIDES
+tile_properties_100: equ TILE_COLLIDES
 tile_properties_101: equ 0
 tile_properties_102: equ 0
 tile_properties_103: equ 0

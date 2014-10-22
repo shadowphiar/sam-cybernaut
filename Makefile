@@ -33,6 +33,8 @@ SOURCE = src/cybernaut.z80s  \
 		src/mainmenu.z80s \
 		src/menu_star_effect.z80s \
 		_build/level1.z80s \
+		src/tile_properties.z80s \
+		
 
 
 DATA = _build/menu.png.samscreen.mdat.gz \
