@@ -79,24 +79,62 @@ mainmenu_startgame:
 Start_Game:
 				di
 				call SILENCE
+
+                
+                ld sp,HMEM_STACK_FRAME
 				                
                 xor a
                 ld (NEXTDISPLAYSCREEN),a    ; frame interrupt shouldn't switch VMPR on us until we're doing animations
 
                 ld a,SCREENPAGE0+96
+setup_game_screens_loop:
                 ld (DISPLAYSCREEN),a
 
-setup_game_palette_loop:
 				out (hmpr),a
+
+				ld ix, drawpaneloutlines_rtn
+				ld hl,32768 + 176*128
+				exx
+
+
+				ld b,16
+				ld hl,panel_layout
+drawpaneloutlines_loop:				
+				ld e,(hl)
+				inc l
+				ld a,(hl)
+				inc l
+				
+				exx
+				ld d,a
+				exx
+				ld a,e
+				exx
+				ld e,a
+				
+				
+assert (DRAWtiles.png_0_11PAGE == DRAWtiles.png_2_11PAGE)
+				ld a,DRAWtiles.png_0_11PAGE | 32
+
+				jp HMEM_SWITCH_LMEM_DRAW  ; SP is background remove stack, DE is routine in page A, HL is HMEM address to draw			
+drawpaneloutlines_rtn:
+				ld a,l
+				sub 128-8
+				ld l,a
+
+				exx
+				djnz drawpaneloutlines_loop
+
 
 				ld bc,16
 				ld hl, game_palette
 				ld de,32768+24576
 				ldir
 
+				ld a,(DISPLAYSCREEN)
 				add 2
 				cp SCREENPAGE0+96+6
-				jr c, setup_game_palette_loop
+				jr c, setup_game_screens_loop
 
  
                 ld a,BORDERSCREENOFF
@@ -104,8 +142,6 @@ setup_game_palette_loop:
                 LD   A,SCREENPAGESPECIAL
                 out (HMPR),a
                 
-                
-                ld sp,HMEM_STACK_FRAME
 
                 ld a,MUSIC.hector.gzPAGE
                 ld hl,MUSIC.hector.gz
@@ -116,8 +152,12 @@ setup_game_palette_loop:
 				ld hl, level1
 				jp begin_screen
 
-
-
+ds align 32
+panel_layout:
+				dw DRAWtiles.png_0_11,DRAWtiles.png_2_11
+				dw DRAWtiles.png_0_11,DRAWtiles.png_1_11,DRAWtiles.png_2_11
+				dw DRAWtiles.png_0_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_2_11
+				dw DRAWtiles.png_0_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_2_11
 
 
 
