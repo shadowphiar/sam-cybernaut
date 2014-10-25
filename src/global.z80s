@@ -5,11 +5,6 @@ if 0==defined(DEBUG)
 DEBUG:		EQU 0
 endif
 
-if 0==defined(DEMO)
-DEMO:       EQU 0
-endif
-
-
 
 
 ;; memory and code configuration

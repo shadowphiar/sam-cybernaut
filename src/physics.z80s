@@ -53,6 +53,9 @@ print "BEGIN_SCREEN", $
 				ld (PLAYER_SPACE + PLAYER.xl),a
 
 SWITCH_SCREEN_THREAD: print "SWITCH_SCREEN_THREAD",$
+
+				xor a
+				ld (NEXTDISPLAYSCREEN),a
 				
 				ld ix, drawtiles_loopreturn
 
@@ -187,9 +190,9 @@ setup_COLLISION_TABLE_loop:
                 jp MAINLOOP
 
 
-HORIZONTAL_IMPULSE: equ 500
-VERTICAL_IMPULSE:   equ 1100
-GRAVITY_IMPULSE:	equ 350
+HORIZONTAL_IMPULSE: equ 400
+VERTICAL_IMPULSE:   equ 900
+GRAVITY_IMPULSE:	equ 300
 
 SHIP_HEIGHT: equ 16
 SHIP_WIDTH: equ 24
@@ -571,6 +574,39 @@ PLAYER.RIGHT_KEYMASK:equ 60
 PLAYER.RIGHT_KEYADDR:equ 61
 PLAYER.FIRE_KEYMASK:equ 62
 PLAYER.FIRE_KEYADDR:equ 63
+
+
+; keeps separate lists of things that don't need to interact with each other to minimize walking time
+; i.e. explosions and other graphical touches don't need to interact with anything
+; suggest groups:
+; 1 - player, player's laser fire
+; 2 - enemy ships, enemy bullets
+; 3 - bounty and powerups
+
+; list of 1 walks the list of 2			(N squared!)
+; player (only) walks the list of 3
+
+; there is some opportunity to be clever and minimize the work done in the 1 - 2 interaction
+; e.g. by keeping the lists sorted or partitioned.
+; It's not entirely clear that this will be a gain overall considering maintenance overhead
+
+; It will help if all the objects (at least, within a group) have some consistent formatting
+; (there doesn't seem to be a requirement for the size to be power-of-2)
+
+; 0 link
+; 1 ID? (Perhaps this is implicit from one of the vectors)
+; 2-3 Y/X
+; 4-5 H/W
+; 6-7 call every frame   IY=this (return: carry set = remove this item)
+; 8-9 call on collision  IY=this, IX=that (return: carry set = remove that item and stop walking this list)
+
+; Could keep IMP DEF data by increasing the size of the record
+; - either decreases the number of items in the list
+; - or makes walking slower if link contains 2 bytes or is encoded
+
+; or keep imp def in a parallel list at +256
+; e.g. inc IYh; ld a,(IY+0); dec IYh
+
 
 
 
