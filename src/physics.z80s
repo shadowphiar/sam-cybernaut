@@ -308,6 +308,74 @@ check_blocked_left:
 
 blocked_horizontal:
 print $
+				; special case, if the player is trying to enter a tunnel exactly one block high
+				; (which is the same height as some ships, so we can skip over it if not pixel aligned)
+				
+				ld a,e
+				and 0x0f
+				ld e,a
+
+				bit 7, (IX+ PLAYER.yspeedh)
+				jr nz, specialcase_goingup
+
+				ld a,c
+				and 0x0f
+				cp 14
+				jr c, specialcase_notapplicable
+
+				ld a,c
+				and 0xf0
+				add 0x10
+				or e
+				ld e,a
+				
+				ld a,(de)
+				and  TILE_COLLIDES
+				jr nz,specialcase_notapplicable
+				
+				ld a,e
+				add 0x10
+				ld e,a
+				ld a,(de)
+				and TILE_COLLIDES
+				jr z,specialcase_notapplicable
+				
+				ld a,e
+				sub 0x10
+				and 0xf0
+				ld (IX+ PLAYER.y),a
+				jr not_blocked_horizontal
+
+specialcase_goingup:
+
+				ld a,c
+				and 0x0f
+				cp 3
+				jr nc, specialcase_notapplicable
+
+				ld a,c
+				and 0xf0
+				or e
+				ld e,a
+				
+				ld a,(de)
+				and  TILE_COLLIDES
+				jr  nz,specialcase_notapplicable
+
+				ld a,e
+				sub 0x10
+				ld e,a
+				ld a,(de)
+				and TILE_COLLIDES
+				jr z,specialcase_notapplicable
+
+				ld a,e
+				add 0x10
+				and 0xf0
+				ld (IX+ PLAYER.y),a
+				jr not_blocked_horizontal
+
+specialcase_notapplicable:
 				ld a,e
 				rla
 				rla
