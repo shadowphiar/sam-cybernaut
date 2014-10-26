@@ -775,6 +775,10 @@ print "Main loop draw fn", $
 finished_drawing_sprites:
 				ld (65534), SP
 
+count_completed_frames: equ $+1
+				ld a,00
+				inc a
+				ld (count_completed_frames),a
 
 
 
@@ -799,7 +803,7 @@ SPRITE_LIST_HEAD_POINTER: equ $+1
 				ld (hl),c
 				inc l
 				ld (hl),b
-				inc l
+				inc hl
 				ld (hl),e
 				inc l
 				ld (hl),d
@@ -808,8 +812,49 @@ SPRITE_LIST_HEAD_POINTER: equ $+1
 				
 				ret
 
+ADD_STRING_TO_CURRENT_LIST:			; call with BC = string (accessible in LMEM), and DE = 192/256 pixel location (uses HL)
+				ld hl,(SPRITE_LIST_HEAD_POINTER)
+				ld (hl),DRAW_STRING_ID\256
+				inc l
+				ld (hl),DRAW_STRING_ID/256
+				inc hl
+				ld (hl),e
+				inc l
+				ld (hl),d
+				inc hl
+				ld (hl),c
+				inc l
+				ld (hl),b
+				inc hl
+				ld (SPRITE_LIST_HEAD_POINTER),hl
+				
+				ret
 
 
+    DS ALIGN 16
+DRAW_STRING_ID: EQU (2*$) + CODEPAGE
+    DS CODEPAGE/2
+    ; when called from main loop, HL is address in screen, IY is address in sprite list (sting in next word)
+				ld e,(iy)
+				inc iyl
+				ld d,(iy)
+				inc iy
+				ld (draw_string_stringaddr),de
+				
+				ld (draw_string_IYstore),iy
+				ld (draw_string_IXstore),ix
+
+draw_string_stringaddr: equ $+2
+				ld IY,0000
+
+				call DRAW_STRING
+				
+draw_string_IYstore: equ $+2
+				ld iy,0000			
+draw_string_IXstore: equ $+2
+				ld ix,0000			
+
+				jp (ix)
 
 
 

@@ -40,6 +40,13 @@ MAINMENU:
 				ld hl, MAINMENU_INTCALLBACK
 				ld (FRAMEVECTOR),hl
 
+				
+				ld hl, MENU_TEXT_ROLLING
+				ld (NEXT_MENU_TEXT),hl
+				ld a,1
+				ld (MENU_TEXT_DELAY),a
+				ld a,MENU_LINE_TOP
+				ld (MENU_TEXT_NEXT_LINE),a
 
 
                 jp MAINLOOP
@@ -63,10 +70,104 @@ MAINMENU_INTCALLBACK:
 		
 				ld bc, MENU_STAR_EFFECT_ID
 				call ADD_SPRITE_TO_CURRENT_LIST ; bc=routine, de=location (uses HL)
+				
+
+
+				
+MENU_TEXT_DELAY: equ $+1
+				ld a,1
+				or a
+				jr z, done_menu_text_update_repeat
+				
+				dec a
+				ld (MENU_TEXT_DELAY),a
+				jp nz, done_menu_text_update				
+				
+				ld a,(count_completed_frames)
+				add 3
+				ld (menu_text_repeat_until),a
+				
+done_menu_text_update_repeat:
+
+NEXT_MENU_TEXT: equ $+1		
+				ld hl, MENU_TEXT_ROLLING
+
+
+				ld c,l
+				ld b,h
+				
+				ld e,255
+				
+
+@strlen:
+				inc e
+				ld a,(hl)
+				inc hl
+				cp 32
+				jr nc, @strlen
+
+
+				ld a,32
+				sub e
+				add a
+				add a
+				ld e,a
+MENU_LINE_TOP: equ 100
+MENU_TEXT_NEXT_LINE: equ $+1
+				ld d,MENU_LINE_TOP
+
+				ld a,(count_completed_frames)
+menu_text_repeat_until: equ $+1
+				cp 00
+				
+				jr nz, @
+				ld (NEXT_MENU_TEXT),hl
+				dec hl
+				ld a,(hl)
+				cp 10
+				jr z,newline
+				
+				cp 1
+
+				ld a, 100
+				ld (MENU_TEXT_DELAY),a
+				
+				ld a,MENU_LINE_TOP
+				ld (MENU_TEXT_NEXT_LINE),a
+				
+				jr nz, @
+				
+				ld hl,MENU_TEXT_ROLLING
+				ld (NEXT_MENU_TEXT),hl
+				jr @
+				
+newline:
+				ld a,1
+				ld (MENU_TEXT_DELAY),a
+				
+				ld a,(MENU_TEXT_NEXT_LINE)
+				add 8
+				ld (MENU_TEXT_NEXT_LINE),a
+
+
+				
+@:
+
 		
+				call ADD_STRING_TO_CURRENT_LIST      ; call with BC = string (accessible in LMEM), and DE = 192/256 pixel location (uses HL)
+
+
+
+
+
+
+
+
+done_menu_text_update:		
 				
 				ret
 
+very_short_text:	db "b",0
 
 
 mainmenu_startgame:
@@ -79,6 +180,9 @@ mainmenu_startgame:
 Start_Game:
 				di
 				call SILENCE
+ 
+                ld a,BORDERSCREENOFF
+                out (BORDER),a
 
                 
                 ld sp,HMEM_STACK_FRAME
@@ -136,9 +240,6 @@ drawpaneloutlines_rtn:
 				cp SCREENPAGE0+96+6
 				jr c, setup_game_screens_loop
 
- 
-                ld a,BORDERSCREENOFF
-                out (BORDER),a
                 LD   A,SCREENPAGESPECIAL
                 out (HMPR),a
                 
@@ -161,43 +262,64 @@ panel_layout:
 
 
 
-;    DS ALIGN 16
-;DRAW_STARS_ROUTINE_ID: EQU (2*$) + (@-PAGE)
-;    DS (@-PAGE)/2
-
 
 				   ;1234567890123456
-MENU_TEXT_STATIC:
+MENU_TEXT_ROLLING:
 				dm "FIRE to start"
-				db 13
+				db 10
 				dm "ESC for menu"
 				db 0   
-MENU_TEXT_ROLLING:
+				dm "             "
+				db 10
+				dm "            "
+				db 0   
 				dm "MNEMOTECH"
 				db 0
 				dm "in association"
-				db 13
+				db 10
 				dm "with"
 				db 0
-				dm "SILVER SWORD"
+				dm " SILVER SWORD "
+				db 10
+				dm "    "
 				db 0
-				dm "proudly presents"
+				dm "  is proud  "
+				db 10
+				dm "to present"
 				db 0
 				dm "CYBERNAUT I."
-				db 13,13
+				db 10
+				dm "          "
+				db 10
 				dm "The Fighting"
-				db 13
+				db 10
 				dm "Machine"
 				db 0
+				dm "            "
+				db 10
+				dm " "
+				db 10
+				dm "            "
+				db 10
+				dm "       "
+				db 0
+				dm "Build version"
+				db 10
 				MDAT "../_build/version"
 				db 0
 				dm "Programming by"
-				db 13
+				db 10
 				dm "Andrew Collier"
+				db 10
+				dm "           "
 				db 0
-				dm "Graphics by"
-				db 13
-				dm "Josef Prokes"
+				dm "  Graphics by  "
+				db 10
+				dm " Josef Prokes "
 				db 0
-				
+				dm "           "
+				db 10
+				dm "            "
+				db 0
+				db 1
 				
