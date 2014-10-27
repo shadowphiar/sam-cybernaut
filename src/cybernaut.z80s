@@ -797,6 +797,7 @@ EXIT_MAIN_LOOP_VECTOR: equ $+1
 
 
 ADD_SPRITE_TO_CURRENT_LIST:			; call with BC = routine ID, and DE = 192/256 pixel location (uses HL)
+									; carry flag is not affected (useful when tail-calling from object vectors)
 
 SPRITE_LIST_HEAD_POINTER: equ $+1
 				ld hl,0000
@@ -975,3 +976,10 @@ IF $>16384
 	@PAGE: EQU @-PAGE + 1
 ENDIF	
                 INCLUDE "menu_star_effect.z80s"
+                
+                
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
+				print (16384-$)/1024 + 16*(SCREENPAGE0 - @-PAGE ), "K free for data"
