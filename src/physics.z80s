@@ -183,9 +183,10 @@ CLEAR_OBJECT_GROUPS:
 				inc l
 				ld a,l
 		@loop1:
+				ld l,a
 				add OBJECT.SIZEOF
 				ld (hl), a
-				ld l,a
+				cp 256-OBJECT.SIZEOF
 				jr c, @loop1
 				xor a
 				ld (hl),a
@@ -542,6 +543,7 @@ not_blocked_vertical:
 
 ; launch projectiles if the player is firing
 
+				ld d, KEYBOARD_TABLE/256
 				ld e, (IX + PLAYER.FIRE_KEYaddr)
 				ld a,(de)
 				and (IX + PLAYER.FIRE_KEYmask)
@@ -550,11 +552,13 @@ not_blocked_vertical:
 
 
 				ld a,(IX + PLAYER.y)
-				add SHIP_HEIGHT-1
+				add SHIP_HEIGHT-3
 				ld h,a
 				ld a,(IX + PLAYER.x)
 				add SHIP_WIDTH - lasershot.png_0.WIDTH
 				ld l,a
+				
+				print "adding bullet object",$
 				
 				ld de, LASER_TEMPLATE
 				ld a, OBJECTS_GROUP1/256
@@ -580,7 +584,7 @@ no_new_firing:
 			; 	walk all the lists and call their frame vectors
 				ld IY,OBJECTS_GROUP0
 @call_objects_group_loop:				
-				ld a,(IY+1)
+				ld a,(IY+LIST.HEADPTR)
 				
 				or a
 				jr z,@empty_list
@@ -630,7 +634,7 @@ ship_pointing_left:
 LASER_TEMPLATE:	db 0, lasershot.png_0.HEIGHT, lasershot.png_0.WIDTH
 				dw BALLISTIC_OBJECT_FRAME, 0
 				dw lasershot.png_0ID, 0,0,0,0
-BALLISTIC_OBJECT_FRAME:
+BALLISTIC_OBJECT_FRAME:		; IMP def data: drawing routine, 0,0,0,0
 				INC IYh
 				ld l,(IY+0)
 				ld h,(IY+0)
@@ -710,7 +714,7 @@ switch_screen_right:
 
 
 ADD_OBJECT:		; add object template from DE into object group A; HL goes into object X/Y fields, 
-				; returns object in hl
+				; returns object in hl (or l=0, carry set if the list is full)
 				
 				push hl
 				
@@ -719,8 +723,12 @@ ADD_OBJECT:		; add object template from DE into object group A; HL goes into obj
 				ld b,(hl)	; head pointer
 				inc l
 				ld c,(hl)	; free pointer
-				
 				dec l
+				
+				ld a,c
+				or a
+				jr z, object_list_is_full
+				
 				ld (hl),c
 				
 				ld l,c
@@ -731,14 +739,14 @@ ADD_OBJECT:		; add object template from DE into object group A; HL goes into obj
 				ld l,c
 				ld (hl),b	; new object link
 				
-				ld a,c		; pointer to object start low byte
-				
 				inc l
 				ld a,(de)
 				ld (hl),a
-				
+
 				inc l
 				inc de
+				
+				ld a,c		; pointer to object start low byte
 				
 				pop bc
 				ld (hl),c
@@ -758,12 +766,16 @@ ADD_OBJECT:		; add object template from DE into object group A; HL goes into obj
 				
 				for 10,LDI
 				
+				ld h,d
 				dec h
 				ld l,a
 				
 				ret
 				
-
+object_list_is_full:	
+				pop bc
+				scf
+				ret
 
 
 
@@ -851,7 +863,8 @@ OBJECTS_GROUP0: ds 512 ; head link at 0, free link at 1 [0 means NULL]. Up to 25
 OBJECTS_GROUP1: ds 512 ;
 OBJECTS_GROUP2: ds 512 ;
 
-
+LIST.HEADPTR: equ 0
+LIST.FREEPTR: equ 1
 
 SIZEOF.PLAYER: equ 64
 

@@ -34,20 +34,41 @@ ENDIF
 @PAGE: 		   equ ship.png_1_2ENDPAGE                
 
 
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
 
     INC "../_build/tiles.png_15_11.sprite.z80s"
 @PAGE: 	   	   equ tiles.png_15_11ENDPAGE                
+
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
     
     INC "../_build/explosion.png_7.sprite.z80s"
 @PAGE: 		   equ explosion.png_7ENDPAGE                
 
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
+
     INC "../_build/enemy1.png_5_1.sprite.z80s"
 @PAGE: 		   equ enemy1.png_5_1ENDPAGE                
+
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF	
 
     INC "../_build/lasershot.png_1.sprite.z80s"
 @PAGE: 		   equ lasershot.png_1ENDPAGE                
 
-
-
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF
 
 DATAENDPAGE: equ @PAGE

@@ -969,12 +969,10 @@ next musicsoft_left
                 DUMP DATASTARTPAGE,0
                 org 0
                 MDAT "../_build/data.obj"
-@PAGE: 	equ DATAENDPAGE
 
-IF $>16384
-	org $-16384
-	@PAGE: EQU @-PAGE + 1
-ENDIF	
+@PAGE: 	equ DATAENDPAGE
+org $\16384
+
                 INCLUDE "menu_star_effect.z80s"
                 
                 
