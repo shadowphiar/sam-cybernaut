@@ -543,11 +543,17 @@ not_blocked_vertical:
 
 ; launch projectiles if the player is firing
 
+				ld h, (IX + PLAYER.oneshot)
+
 				ld d, KEYBOARD_TABLE/256
 				ld e, (IX + PLAYER.FIRE_KEYaddr)
 				ld a,(de)
 				and (IX + PLAYER.FIRE_KEYmask)
-				jp nz, no_new_firing
+
+				ld (IX + PLAYER.oneshot),a
+				xor h
+				and h
+				jp z, no_new_firing
 		
 
 
@@ -558,10 +564,12 @@ not_blocked_vertical:
 				add SHIP_WIDTH - lasershot.png_0.WIDTH
 				ld l,a
 				
-				print "adding bullet object",$
 				
-				ld de, LASER_TEMPLATE
-				ld a, OBJECTS_GROUP1/256
+				ld de, LASER_TEMPLATE_R
+				bit 7,(IX + PLAYER.xspeedh)
+				jr z,@
+				ld de, LASER_TEMPLATE_L
+@:				ld a, OBJECTS_GROUP1/256
 				call ADD_OBJECT
 
 
@@ -583,7 +591,10 @@ no_new_firing:
 
 			; 	walk all the lists and call their frame vectors
 				ld IY,OBJECTS_GROUP0
-@call_objects_group_loop:				
+@call_objects_group_loop:
+				xor a
+				ld (@object_last_link_pointer),a
+			
 				ld a,(IY+LIST.HEADPTR)
 				
 				or a
@@ -595,10 +606,20 @@ no_new_firing:
 				ld a,l
 				or h
 				jr z, @objects_next				
-				ld bc, @objects_next
+				ld bc, @objects_return
 				push bc
 				jp (hl)
+@objects_return:
+				; carry flag set - remove this object from the list
+
+		@object_last_link_pointer: equ $+1
+				ld a,00
+				call c, REMOVE_OBJECT
+				
 @objects_next:				
+				ld a,IYl
+				ld (@object_last_link_pointer),a
+				
 				ld a,(IY+0)
 				or a
 				jr nz, @call_objects_loop
@@ -631,18 +652,80 @@ ship_pointing_left:
 
 				ret
 
-LASER_TEMPLATE:	db 0, lasershot.png_0.HEIGHT, lasershot.png_0.WIDTH
-				dw BALLISTIC_OBJECT_FRAME, 0
-				dw lasershot.png_0ID, 0,0,0,0
-BALLISTIC_OBJECT_FRAME:		; IMP def data: drawing routine, 0,0,0,0
-				INC IYh
-				ld l,(IY+0)
-				ld h,(IY+0)
-				DEC IYh
-				ld bc, lasershot.png_0ID
+PROJECTILE_OBJECT.DRAWING_IDl : equ 0
+PROJECTILE_OBJECT.DRAWING_IDh : equ 1
+PROJECTILE_OBJECT.XSPEEDl : 	equ 2
+PROJECTILE_OBJECT.XSPEED: 		equ 3
+PROJECTILE_OBJECT.YSPEEDl : 	equ 4
+PROJECTILE_OBJECT.YSPEED: 		equ 5
+PROJECTILE_OBJECT.XOFFSET : 	equ 6
+PROJECTILE_OBJECT.YOFFSET: 		equ 7
+PROJECTILE_OBJECT.Xl : 			equ 8
+PROJECTILE_OBJECT.Yl: 			equ 9
+
+
+
+
+LASER_TEMPLATE_R:	db 0, lasershot.png_0.HEIGHT, lasershot.png_0.WIDTH
+					dw PROJECTILE_OBJECT_FRAME, 0
+					dw lasershot.png_0ID, 7*256,0,0,0
+LASER_TEMPLATE_L:	db 0, lasershot.png_0.HEIGHT, lasershot.png_0.WIDTH
+					dw PROJECTILE_OBJECT_FRAME, 0
+					dw lasershot.png_1ID, -7*256,0,0,0
+
+PROJECTILE_OBJECT_FRAME:		
 				ld e,(IY + OBJECT.X)
 				ld d,(IY + OBJECT.Y)
+				INC IYh
+				
+				ld a,(IY + PROJECTILE_OBJECT.Xl)
+				add (IY + PROJECTILE_OBJECT.XSPEEDl)
+				ld (IY + PROJECTILE_OBJECT.Xl),a
+				
+				ld a,e
+				ld b, (IY + PROJECTILE_OBJECT.XSPEED)
+				adc b
+				bit 7,b
+				jr z, @
+				ccf
+	@:			jr c,@remove
+				ld e,a
+
+
+				ld a,(IY + PROJECTILE_OBJECT.Yl)
+				add (IY + PROJECTILE_OBJECT.YSPEEDl)
+				ld (IY + PROJECTILE_OBJECT.Yl),a
+				
+				ld a,d
+				adc (IY + PROJECTILE_OBJECT.YSPEED)
+				jr c,@remove
+				ld d,a
+
+
+				ld l,(IY + PROJECTILE_OBJECT.XOFFSET)
+				ld h,(IY + PROJECTILE_OBJECT.YOFFSET)
+				ld c,(IY+0)
+				ld b,(IY+1)
+				DEC IYh
+
+				ld (IY + OBJECT.X),e
+				ld (IY + OBJECT.Y),d
+				
+				ld a,e
+				sub l
+				ld e,a
+				ld a,d
+				sub l
+				ld d,a				
+
+				or a
 				jp ADD_SPRITE_TO_CURRENT_LIST
+@remove:
+				dec IYh
+				scf
+				ret
+
+
 
 
 switch_screen_down:
@@ -756,15 +839,12 @@ ADD_OBJECT:		; add object template from DE into object group A; HL goes into obj
 				
 				ex de,hl
 				
-				ldi
-				ldi
-				ldi
-				ldi
+				for 6, LDI
 											
 				inc d
 				ld e,a
 				
-				for 10,LDI
+				for 10, LDI
 				
 				ld h,d
 				dec h
@@ -777,11 +857,26 @@ object_list_is_full:
 				scf
 				ret
 
+print "REMOVE_OBJECT", $
+REMOVE_OBJECT:			; remove the list object pointed to by IY, A is the previous link pointing to this object
+						; IY is left pointing at the previous object (or IYl=0, the list head)
 
+				ld c,IYl			; this object
+				ld d,(IY + 0)		; next object
+				
+				; put this object at the head of the free list
+				ld b,IYh
+				ld h,b
+				ld l,1
+				ld e,(HL)
+				ld (HL),c
+				ld (IY + 0),e		
 
-
-
-
+				; close the gap in the allocated objects list
+				ld IYl,a
+				ld (IY + 0), d
+				
+				ret
 
 
 
@@ -798,8 +893,9 @@ PLAYER.y: equ 3
 PLAYER.xspeed: equ 4
 PLAYER.xspeedh: equ 5
 PLAYER.yspeed: equ 6
-player.yspeedh: equ 7
+PLAYER.yspeedh: equ 7
 
+PLAYER.oneshot: equ 8
 
 player.next_extend0: equ 32	; 0
 player.next_extend1: equ 33	; 10(00)(0)
