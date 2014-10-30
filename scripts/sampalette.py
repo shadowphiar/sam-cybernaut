@@ -69,14 +69,11 @@ def navigate(sprite,x,y,reverse):
                     dx = -dx
                     testx += dx
                     
-                    if not reverse:
+                    if (not reverse) ^ (width+offset+height % 2):
                         testy += 1
-                        if testy >= height:
-                            testy -= 2
                     else:
                         testy -= 1
-                        if testy < 0:
-                            testy += 2
+
                 elif testx < 0:
                     finished = 1
             if (sprite(testy,testx) != BLANKCOLOUR) or (sprite(testy,testx+1) != BLANKCOLOUR) or finished:    
@@ -98,9 +95,8 @@ def navigate(sprite,x,y,reverse):
                     dy = -dy
                     testy += dy
                     
-                    if (not reverse):
+                    if (not reverse) ^ (width+offset+height % 2):
                         testy += 1
-                        
                     else:
                         testy -= 1
 
@@ -1160,6 +1156,7 @@ for inputfilename in file_args:
                             
                                 if storebackgroundreg:
                                     print "**** ERROR: something gone wrong in sprite navigation, pixels left"
+                                    sys.exit(1)
                                 
                                 
                                 sourcecode.append( "ret")
