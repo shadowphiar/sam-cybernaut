@@ -558,7 +558,7 @@ not_blocked_vertical:
 
 
 				ld a,(IX + PLAYER.y)
-				add SHIP_HEIGHT-3
+				add SHIP_HEIGHT - lasershot.png_0.HEIGHT
 				ld h,a
 				ld a,(IX + PLAYER.x)
 				add SHIP_WIDTH - lasershot.png_0.WIDTH
@@ -658,7 +658,7 @@ PROJECTILE_OBJECT.XSPEEDl : 	equ 2
 PROJECTILE_OBJECT.XSPEED: 		equ 3
 PROJECTILE_OBJECT.YSPEEDl : 	equ 4
 PROJECTILE_OBJECT.YSPEED: 		equ 5
-PROJECTILE_OBJECT.XOFFSET : 	equ 6
+PROJECTILE_OBJECT.XOFFSET : 	equ 6	; offset of the collision rectangle within the drawn sprite
 PROJECTILE_OBJECT.YOFFSET: 		equ 7
 PROJECTILE_OBJECT.Xl : 			equ 8
 PROJECTILE_OBJECT.Yl: 			equ 9
@@ -666,16 +666,18 @@ PROJECTILE_OBJECT.Yl: 			equ 9
 
 
 
-LASER_TEMPLATE_R:	db 0, lasershot.png_0.HEIGHT, lasershot.png_0.WIDTH
+LASER_TEMPLATE_R:	db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
 					dw PROJECTILE_OBJECT_FRAME, 0
 					dw lasershot.png_0ID, 7*256,0,0,0
-LASER_TEMPLATE_L:	db 0, lasershot.png_0.HEIGHT, lasershot.png_0.WIDTH
+LASER_TEMPLATE_L:	db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
 					dw PROJECTILE_OBJECT_FRAME, 0
 					dw lasershot.png_1ID, -7*256,0,0,0
 
 PROJECTILE_OBJECT_FRAME:		
 				ld e,(IY + OBJECT.X)
 				ld d,(IY + OBJECT.Y)
+				ld l,(IY + OBJECT.W)
+				ld h,(IY + OBJECT.H)
 				INC IYh
 				
 				ld a,(IY + PROJECTILE_OBJECT.Xl)
@@ -688,7 +690,7 @@ PROJECTILE_OBJECT_FRAME:
 				bit 7,b
 				jr z, @
 				ccf
-	@:			jr c,@remove
+	@:			jp c,@remove
 				ld e,a
 
 
@@ -697,10 +699,131 @@ PROJECTILE_OBJECT_FRAME:
 				ld (IY + PROJECTILE_OBJECT.Yl),a
 				
 				ld a,d
-				adc (IY + PROJECTILE_OBJECT.YSPEED)
-				jr c,@remove
+				ld b, (IY + PROJECTILE_OBJECT.YSPEED)
+				adc b
+				bit 7,b
+				jr z, @
+				ccf
+	@:			jp c,@remove
 				ld d,a
 
+			; calculated new position in d/e, now check for collision with static geometry
+			; h/l are still height/width
+			
+				; trace along the top/bottom edge
+			print "BREAK", $
+				ld a,e
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				ld b,a
+				
+				ld a,d
+				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
+				jr nz,@top
+				add h
+				dec a
+		@top:	and 0xf0
+				or b
+				ld c,a
+				
+				ld a,e
+				add l
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				sub b
+				ld l,a
+				
+				inc l
+				ld b, BLOCK_COLLISION_TABLE/256
+		@loop:		
+				ld a,(bc)
+				and TILE_COLLIDES
+				jr nz, @remove
+
+				inc c
+				dec l
+				jr nz, @loop				
+
+
+				; trace down the left/right edge (if not covered by the top/bottom edge)
+
+				
+				; find number of covered tiles in height. If >1, check the remaining part of edge
+				; (if going up, add one to height)
+
+				ld a,d
+				add h
+				dec a
+				and 0xf0
+				cp d
+				jr c, completed_projectile_collision_check
+				jr z, completed_projectile_collision_check
+
+				ld h,a
+				ld a,d
+				and 0xf0
+				neg
+				add h
+				and 0xf0
+				rra
+				rra
+				rra
+				rra
+				ld h,a	; number of additional squares we need to check
+
+
+
+				
+				; c points to the right side (at either top or bottom - so recalculate top)
+
+				ld a,c
+
+				; if going left, move c to the left side
+
+				bit 7, (IY + PROJECTILE_OBJECT.XSPEED)
+				jr z, @r
+				and 0xf0
+				ld c,a
+				ld a,e
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				or c
+		@r:
+				and 0x0f
+				ld c,a
+
+				ld a,d
+				and 0xf0
+				or c
+				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
+				jr nz,@t
+				add 0x10
+		@t:		ld c,a
+
+				
+				ld b, BLOCK_COLLISION_TABLE/256
+		@loop:		
+				ld a,(bc)
+				and TILE_COLLIDES
+				jr nz, @remove
+
+				ld a,c
+				add 0x10
+				ld c,a
+				dec l
+				jr nz, @loop				
+
+
+completed_projectile_collision_check:
 
 				ld l,(IY + PROJECTILE_OBJECT.XOFFSET)
 				ld h,(IY + PROJECTILE_OBJECT.YOFFSET)
