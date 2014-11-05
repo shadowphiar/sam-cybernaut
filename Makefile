@@ -33,7 +33,7 @@ SOURCE = src/cybernaut.z80s  \
 		src/mainmenu.z80s \
 		src/menu_star_effect.z80s \
 		_build/level1.z80s \
-		src/tile_properties.z80s \
+		_build/tile_properties.z80s \
 		
 
 
@@ -84,6 +84,8 @@ _build/font_sm.png_31_1.sprite.z80s: graphics/font_sm.png _build/mkdir
 _build/level1.z80s: maps/level1.json scripts/parselevel.py _build/mkdir 
 	 scripts/parselevel.py < $< > $@
 
+_build/tile_properties.z80s: maps/level1.json scripts/parselevel.py _build/mkdir 
+	 scripts/parselevel.py --properties < $< > $@
 
 
 
@@ -123,7 +125,7 @@ _build/enemy1.png_5_1.sprite.z80s: graphics/enemy1.png _build/mkdir
 
 
 _build/tiles.png_15_11.sprite.z80s: graphics/tiles.png _build/mkdir
-	$(sampalette) $(PAL) -s -c -a -x 16 -y 12 -b 48 $<
+	$(sampalette) $(PAL) -s -D -c -a -x 16 -y 12 -b 48 $<
 
 
 

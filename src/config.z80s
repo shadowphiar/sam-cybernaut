@@ -145,7 +145,7 @@ config.player1controls: equ $-configblock
                 db 0 ; 20  player 1 control mode (0=keyboard, 1=joystick1, 2=joystick2)
                 db 1 ; 21  player 1 control mode (0=keyboard, 1=joystick1, 2=joystick2)
                
-                db 1 ; 22  music (0=off, 1=soft, 2=full)
+                db 0 ; 22  music (0=off, 1=soft, 2=full)
                 db 2 ; 23  fx (0=off, 1=mono, 2=stereo)
 
 				db 0;  24  show timing info

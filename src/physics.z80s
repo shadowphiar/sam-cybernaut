@@ -1,4 +1,4 @@
-	include "tile_properties.z80s"
+	include "../_build/tile_properties.z80s"
 
 ds align 256
 DrawTile_LookupT:
@@ -56,6 +56,42 @@ SWITCH_SCREEN_THREAD: print "SWITCH_SCREEN_THREAD",$
 
 				xor a
 				ld (NEXTDISPLAYSCREEN),a
+
+
+                
+CLEAR_OBJECT_GROUPS:
+				ld hl, OBJECTS_GROUP0
+		@loop2:
+				ld (hl),l ;0
+				inc l
+				ld (hl),2
+				inc l
+				ld a,l
+		@loop1:
+				ld l,a
+				add OBJECT.SIZEOF
+				ld (hl), a
+				cp 256-OBJECT.SIZEOF
+				jr c, @loop1
+				xor a
+				ld (hl),a
+				ld l,a
+				ld a,h
+				add 2
+				ld h,a
+				cp 	OBJECTS_GROUP2/256 +2
+				jr c, @loop2
+                
+                
+
+; add player ship object in group 1
+
+PLAYER_SCREEN_ENTRY_POSITION: equ $+1				
+				ld hl, 0000
+				ld de, SHIP_TEMPLATE
+ 				ld a, OBJECTS_GROUP1/256
+				call ADD_OBJECT
+
 				
 				ld ix, drawtiles_loopreturn
 
@@ -138,6 +174,8 @@ drawtiles_loopreturn:
                 
                 
                 
+
+               
                 
                 
 ; then loop again to fill in the physics tables
@@ -161,7 +199,7 @@ setup_COLLISION_TABLE_loop:
 				rla
 				add DrawTile_LookupT/256
 				ld b,a
-               
+                
                 ld a,(bc)
                 ld (de),a
                 inc e
@@ -171,37 +209,52 @@ setup_COLLISION_TABLE_loop:
                 
                 
                 
+                exx
                 
+                ld a,l
+                ld IYl,a
+                ld a,h
+                ld IYh,a
                 
-                
-CLEAR_OBJECT_GROUPS:
-				ld hl, OBJECTS_GROUP0
-		@loop2:
-				ld (hl),l ;0
-				inc l
-				ld (hl),2
-				inc l
-				ld a,l
-		@loop1:
-				ld l,a
-				add OBJECT.SIZEOF
-				ld (hl), a
-				cp 256-OBJECT.SIZEOF
-				jr c, @loop1
-				xor a
-				ld (hl),a
-				ld l,a
-				ld a,h
-				add 2
-				ld h,a
-				cp 	OBJECTS_GROUP2/256 +2
-				jr c, @loop2
-                
-                
-                
-                
-                
-                
+                print $, setup_screen_Objects
+setup_screen_Objects:      
+				ld a,(IY+0)
+				
+				cp 255
+				jr z, finished_setup_screen_objects
+				                
+         		; otherwise first byte was object group to place in
+         		add a
+         		add OBJECTS_GROUP0/256
+         		assert(OBJECTS_GROUP1-OBJECTS_GROUP0)==512
+         		
+         		; followed by X and Y coordinates
+         		ld l,(IY+1)
+         		ld h,(IY+2)
+         		
+         		; followed by an object template
+         		ld a,IYl
+         		add 3
+         		ld e,a
+         		ld a,IYh
+         		adc 0
+         		ld d,a
+         		
+         		ld a,(IY+0)
+         		add a
+         		add OBJECTS_GROUP0/256
+         		assert(OBJECTS_GROUP1-OBJECTS_GROUP0)==512
+         		
+         		call ADD_OBJECT
+         		
+         		ld de, TEMPLATE.SIZEOF + 3
+         		add IY,de
+         		jr setup_screen_Objects
+         		
+         		
+         		
+finished_setup_screen_objects:                
+
 				ld hl, GAMEPHYSICS_INTCALLBACK
 				ld (FRAMEVECTOR),hl
 
@@ -230,6 +283,427 @@ GAMEPHYSICS_INTCALLBACK:
 
 
 				
+
+
+
+			; 	walk all the lists and call their frame vectors
+				ld IYh,OBJECTS_GROUP2/256
+@call_objects_group_loop:
+				xor a
+				ld (@object_last_link_pointer),a
+				ld IYl,a
+			
+				ld a,(IY+LIST.HEADPTR)
+				
+				or a
+				jr z,@empty_list
+@call_objects_loop:				
+				ld IYl,a
+				ld l,(IY+OBJECT.FRAME)
+				ld h,(IY+OBJECT.FRAME+1)
+				ld a,l
+				or h
+				jr z, @objects_next				
+				ld bc, @objects_return
+				push bc
+				jp (hl)
+@objects_return:
+				; carry flag set - remove this object from the list
+
+		@object_last_link_pointer: equ $+1
+				ld a,00
+				call c, REMOVE_OBJECT
+				
+@objects_next:				
+				ld a,IYl
+				ld (@object_last_link_pointer),a
+				
+				ld a,(IY+0)
+				or a
+				jr nz, @call_objects_loop
+@empty_list:
+				ld a,IYh
+				sub 2
+				ld IYh,a
+				cp OBJECTS_GROUP0/256 - 2
+				jr nz, @call_objects_group_loop
+
+
+
+
+
+			; 	collision detection between list 1 and list 2
+			;   this is a rather naive O(n^2) algorithm
+			;   if it proves a problem, there may be ways to improve it by sorting the lists beforehand
+			;   (but that itself has a maintenance cost which may outweigh the cost of walking the lists, especially if N is small)
+
+				ld IY, OBJECTS_GROUP1
+
+objects_collision_outer_loop:				
+				ld a,(IY + LIST.HEADPTR)
+				or a
+				jp z, finished_objects_collision_loop
+
+				ld IYl,a
+				
+				ld a, (IY + OBJECT.X)
+				ld c,a
+				add (IY + OBJECT.W)
+				ld e,a
+				ld a, (IY + OBJECT.Y)
+				ld b,a
+				add (IY + OBJECT.H)
+				ld d,a
+				
+				
+				ld IX, OBJECTS_GROUP2
+objects_collision_inner_loop:				
+				ld a, (IX + LIST.HEADPTR)
+				or a
+				jr z, objects_collision_outer_loop
+				
+				ld IXl,a
+				
+				
+				ld a,( IX + OBJECT.X)
+				cp e
+				jr nc, objects_collision_inner_loop
+				add ( IX + OBJECT.W)
+				cp c
+				jr c, objects_collision_inner_loop
+				
+				ld a,( IX + OBJECT.Y)
+				cp d
+				jr nc, objects_collision_inner_loop
+				add ( IX + OBJECT.H)
+				cp b
+				jr c, objects_collision_inner_loop
+
+				
+				ld l, ( IY + OBJECT.HIT )
+				ld h, ( IY + OBJECT.HIT+1 )
+				ld a,l
+				or h
+				jr z, @objects_next1			
+				ld bc, @objects_return1
+				push bc
+				jp (hl)
+@objects_return1:
+
+				; even if carry set, don't delete the object until making the other call. also, make sure to only delete it once!!!
+
+@objects_next1:
+
+
+				ld l, ( IX + OBJECT.HIT )
+				ld h, ( IX + OBJECT.HIT+1 )
+				ld a,l
+				or h
+				jr z, @objects_next2			
+				ld bc, @objects_return2
+				push bc
+				jp (hl)
+@objects_return2:
+
+@objects_next2:
+
+
+
+				jr objects_collision_inner_loop
+
+
+
+
+finished_objects_collision_loop:
+
+
+				ret
+
+PROJECTILE_OBJECT.DRAWING_IDl : equ 0
+PROJECTILE_OBJECT.DRAWING_IDh : equ 1
+PROJECTILE_OBJECT.XSPEEDl : 	equ 2
+PROJECTILE_OBJECT.XSPEED: 		equ 3
+PROJECTILE_OBJECT.YSPEEDl : 	equ 4
+PROJECTILE_OBJECT.YSPEED: 		equ 5
+PROJECTILE_OBJECT.XOFFSET : 	equ 6	; offset of the collision rectangle within the drawn sprite
+PROJECTILE_OBJECT.YOFFSET: 		equ 7
+PROJECTILE_OBJECT.Xl : 			equ 8
+PROJECTILE_OBJECT.Yl: 			equ 9
+
+
+
+
+LASER_TEMPLATE_R:	db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
+					dw PROJECTILE_OBJECT_FRAME, 0
+					dw lasershot.png_0ID, 7*256,0,0,0
+LASER_TEMPLATE_L:	db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
+					dw PROJECTILE_OBJECT_FRAME, 0
+					dw lasershot.png_1ID, -7*256,0,0,0
+
+PROJECTILE_OBJECT_FRAME:		
+				ld e,(IY + OBJECT.X)
+				ld d,(IY + OBJECT.Y)
+				ld l,(IY + OBJECT.W)
+				ld h,(IY + OBJECT.H)
+				INC IYh
+				
+				ld a,(IY + PROJECTILE_OBJECT.Xl)
+				add (IY + PROJECTILE_OBJECT.XSPEEDl)
+				ld (IY + PROJECTILE_OBJECT.Xl),a
+				
+				ld a,e
+				ld b, (IY + PROJECTILE_OBJECT.XSPEED)
+				adc b
+				bit 7,b
+				jr z, @
+				ccf
+	@:			jp c,@remove
+				ld e,a
+
+
+				ld a,(IY + PROJECTILE_OBJECT.Yl)
+				add (IY + PROJECTILE_OBJECT.YSPEEDl)
+				ld (IY + PROJECTILE_OBJECT.Yl),a
+				
+				ld a,d
+				ld b, (IY + PROJECTILE_OBJECT.YSPEED)
+				adc b
+				bit 7,b
+				jr z, @
+				ccf
+	@:			jp c,@remove
+				ld d,a
+
+			; calculated new position in d/e, now check for collision with static geometry
+			; h/l are still height/width
+			
+				; trace along the top/bottom edge
+			print "BREAK", $
+				ld a,e
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				ld b,a
+				
+				ld a,d
+				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
+				jr nz,@top
+				add h
+				dec a
+		@top:	and 0xf0
+				or b
+				ld c,a
+				
+				ld a,e
+				add l
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				sub b
+				ld l,a
+				
+				inc l
+				ld b, BLOCK_COLLISION_TABLE/256
+		@loop:		
+				ld a,(bc)
+				and TILE_COLLIDES
+				jr nz, @remove
+
+				inc c
+				dec l
+				jr nz, @loop				
+
+
+				; trace down the left/right edge (if not covered by the top/bottom edge)
+
+				
+				; find number of covered tiles in height. If >1, check the remaining part of edge
+				; (if going up, add one to height)
+
+				ld a,d
+				add h
+				dec a
+				and 0xf0
+				cp d
+				jr c, completed_projectile_collision_check
+				jr z, completed_projectile_collision_check
+
+				ld h,a
+				ld a,d
+				and 0xf0
+				neg
+				add h
+				and 0xf0
+				rra
+				rra
+				rra
+				rra
+				ld h,a	; number of additional squares we need to check
+
+
+
+				
+				; c points to the right side (at either top or bottom - so recalculate top)
+
+				ld a,c
+
+				; if going left, move c to the left side
+
+				bit 7, (IY + PROJECTILE_OBJECT.XSPEED)
+				jr z, @r
+				and 0xf0
+				ld c,a
+				ld a,e
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				or c
+		@r:
+				and 0x0f
+				ld c,a
+
+				ld a,d
+				and 0xf0
+				or c
+				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
+				jr nz,@t
+				add 0x10
+		@t:		ld c,a
+
+				
+				ld b, BLOCK_COLLISION_TABLE/256
+		@loop:		
+				ld a,(bc)
+				and TILE_COLLIDES
+				jr nz, @remove
+
+				ld a,c
+				add 0x10
+				ld c,a
+				dec l
+				jr nz, @loop				
+
+
+completed_projectile_collision_check:
+
+				ld l,(IY + PROJECTILE_OBJECT.XOFFSET)
+				ld h,(IY + PROJECTILE_OBJECT.YOFFSET)
+				ld c,(IY+0)
+				ld b,(IY+1)
+				DEC IYh
+
+				ld (IY + OBJECT.X),e
+				ld (IY + OBJECT.Y),d
+				
+				ld a,e
+				sub l
+				ld e,a
+				ld a,d
+				sub l
+				ld d,a				
+
+				or a
+				jp ADD_SPRITE_TO_CURRENT_LIST
+@remove:
+				dec IYh
+				scf
+				ret
+
+
+
+ROCKET.TILESLISTl: equ 0
+ROCKET.TILESLISTh: equ 1
+ROCKET.ANIMSTATEl: equ 2 
+ROCKET.ANIMSTATEh: equ 3 
+ROCKET.ANIMSPEEDl: equ 4 
+ROCKET.ANIMSPEEDh: equ 5
+ROCKET.XOFFSET :   equ 6	; offset of the collision rectangle within the drawn sprite
+ROCKET.YOFFSET:    equ 7
+
+
+STATIC_ROCKET_FRAME:
+				inc IYh
+				
+				ld a,(IY+ROCKET.ANIMSTATEl)
+				add (IY+ROCKET.ANIMSPEEDl)
+				ld (IY+ROCKET.ANIMSTATEl),a
+				ld a,(IY+ROCKET.ANIMSTATEh)
+				adc (IY+ROCKET.ANIMSPEEDh)
+				and 0x03
+				ld (IY+ROCKET.ANIMSTATEh),a
+				
+				add a
+				
+				add (IY + ROCKET.TILESLISTl)
+				ld l,a
+				ld h, (IY + ROCKET.TILESLISTh)
+				ld c,(hl)
+				inc l
+				ld b,(hl)
+				
+				ld d,(IY + ROCKET.YOFFSET)
+				dec IYh
+				
+				ld e,(IY + OBJECT.X)
+				ld a,(IY + OBJECT.Y)
+				sub d
+				ld d,a
+				
+				or a
+				jp ADD_SPRITE_TO_CURRENT_LIST
+
+
+				ds align 8
+UP_ROCKET_TILES: dw tiles.png_1_1ID, tiles.png_2_1ID, tiles.png_3_1ID, tiles.png_4_1ID
+DOWN_ROCKET_TILES: dw tiles.png_12_2ID, tiles.png_13_2ID, tiles.png_14_2ID, tiles.png_15_2ID
+
+
+
+
+
+
+STATIC_ROCKET_COLLIDE:
+
+				ld a,64
+				out (CLUT),a
+
+
+				or a
+				ret
+				
+
+
+
+
+SHIP_TEMPLATE:		db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
+					dw SHIP_OBJECT_FRAME, SHIP_OBJECT_COLLISION
+					dw lasershot.png_1ID, -7*256,0,0,0
+
+
+
+SHIP.Al: equ 0
+SHIP.Ah: equ 1
+SHIP.Bl: equ 2 
+SHIP.Bh: equ 3 
+SHIP.Cl: equ 4 
+SHIP.Ch: equ 5
+SHIP.XOFFSET:    equ 6	; offset of the collision rectangle within the drawn sprite
+SHIP.YOFFSET:    equ 7
+
+
+SHIP_OBJECT_COLLISION:
+				or a
+				ret
+
+
+
+SHIP_OBJECT_FRAME:
 
 				ld IX, PLAYER_SPACE
 
@@ -577,68 +1051,14 @@ no_new_firing:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-			; 	walk all the lists and call their frame vectors
-				ld IY,OBJECTS_GROUP0
-@call_objects_group_loop:
-				xor a
-				ld (@object_last_link_pointer),a
-			
-				ld a,(IY+LIST.HEADPTR)
-				
-				or a
-				jr z,@empty_list
-@call_objects_loop:				
-				ld IYl,a
-				ld l,(IY+6)
-				ld h,(IY+7)
-				ld a,l
-				or h
-				jr z, @objects_next				
-				ld bc, @objects_return
-				push bc
-				jp (hl)
-@objects_return:
-				; carry flag set - remove this object from the list
-
-		@object_last_link_pointer: equ $+1
-				ld a,00
-				call c, REMOVE_OBJECT
-				
-@objects_next:				
-				ld a,IYl
-				ld (@object_last_link_pointer),a
-				
-				ld a,(IY+0)
-				or a
-				jr nz, @call_objects_loop
-@empty_list:
-				ld a,IYh
-				add 2
-				ld IYh,a
-				cp OBJECTS_GROUP2/256 + 2
-				jr nz, @call_objects_group_loop
-
-
-
-
-
-; this is a cheat and should become an object in group 1. 
-; If it is the first added, it will always be at the back of the list and will have the correct drawing order.
-			; draw ship (last, so it appears above laser shots being fired etc)
+; This is the first object added to group 1, it will always be at the back of the list
+; i.e. it will be drawn above laser shots being fired etc)
 				ld e, (IX + PLAYER.x)
 				ld d, (IX + PLAYER.y)
+				ld (IY + OBJECT.X),e
+				ld (IY + OBJECT.Y),d
+
+
 				
 				bit 7,(IX + PLAYER.xspeedh)
 				jr nz, ship_pointing_left
@@ -647,206 +1067,26 @@ no_new_firing:
 ship_pointing_left:
 				ld bc, ship.png_1_0ID
 @:
-				call ADD_SPRITE_TO_CURRENT_LIST ; bc=routine, de=location (uses HL)
-
-
-				ret
-
-PROJECTILE_OBJECT.DRAWING_IDl : equ 0
-PROJECTILE_OBJECT.DRAWING_IDh : equ 1
-PROJECTILE_OBJECT.XSPEEDl : 	equ 2
-PROJECTILE_OBJECT.XSPEED: 		equ 3
-PROJECTILE_OBJECT.YSPEEDl : 	equ 4
-PROJECTILE_OBJECT.YSPEED: 		equ 5
-PROJECTILE_OBJECT.XOFFSET : 	equ 6	; offset of the collision rectangle within the drawn sprite
-PROJECTILE_OBJECT.YOFFSET: 		equ 7
-PROJECTILE_OBJECT.Xl : 			equ 8
-PROJECTILE_OBJECT.Yl: 			equ 9
-
-
-
-
-LASER_TEMPLATE_R:	db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
-					dw PROJECTILE_OBJECT_FRAME, 0
-					dw lasershot.png_0ID, 7*256,0,0,0
-LASER_TEMPLATE_L:	db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
-					dw PROJECTILE_OBJECT_FRAME, 0
-					dw lasershot.png_1ID, -7*256,0,0,0
-
-PROJECTILE_OBJECT_FRAME:		
-				ld e,(IY + OBJECT.X)
-				ld d,(IY + OBJECT.Y)
-				ld l,(IY + OBJECT.W)
-				ld h,(IY + OBJECT.H)
-				INC IYh
-				
-				ld a,(IY + PROJECTILE_OBJECT.Xl)
-				add (IY + PROJECTILE_OBJECT.XSPEEDl)
-				ld (IY + PROJECTILE_OBJECT.Xl),a
-				
-				ld a,e
-				ld b, (IY + PROJECTILE_OBJECT.XSPEED)
-				adc b
-				bit 7,b
-				jr z, @
-				ccf
-	@:			jp c,@remove
-				ld e,a
-
-
-				ld a,(IY + PROJECTILE_OBJECT.Yl)
-				add (IY + PROJECTILE_OBJECT.YSPEEDl)
-				ld (IY + PROJECTILE_OBJECT.Yl),a
-				
-				ld a,d
-				ld b, (IY + PROJECTILE_OBJECT.YSPEED)
-				adc b
-				bit 7,b
-				jr z, @
-				ccf
-	@:			jp c,@remove
-				ld d,a
-
-			; calculated new position in d/e, now check for collision with static geometry
-			; h/l are still height/width
-			
-				; trace along the top/bottom edge
-			print "BREAK", $
-				ld a,e
-				rra
-				rra
-				rra
-				rra
-				and 0x0f
-				ld b,a
-				
-				ld a,d
-				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
-				jr nz,@top
-				add h
-				dec a
-		@top:	and 0xf0
-				or b
-				ld c,a
-				
-				ld a,e
-				add l
-				rra
-				rra
-				rra
-				rra
-				and 0x0f
-				sub b
-				ld l,a
-				
-				inc l
-				ld b, BLOCK_COLLISION_TABLE/256
-		@loop:		
-				ld a,(bc)
-				and TILE_COLLIDES
-				jr nz, @remove
-
-				inc c
-				dec l
-				jr nz, @loop				
-
-
-				; trace down the left/right edge (if not covered by the top/bottom edge)
-
-				
-				; find number of covered tiles in height. If >1, check the remaining part of edge
-				; (if going up, add one to height)
-
-				ld a,d
-				add h
-				dec a
-				and 0xf0
-				cp d
-				jr c, completed_projectile_collision_check
-				jr z, completed_projectile_collision_check
-
-				ld h,a
-				ld a,d
-				and 0xf0
-				neg
-				add h
-				and 0xf0
-				rra
-				rra
-				rra
-				rra
-				ld h,a	; number of additional squares we need to check
-
-
-
-				
-				; c points to the right side (at either top or bottom - so recalculate top)
-
-				ld a,c
-
-				; if going left, move c to the left side
-
-				bit 7, (IY + PROJECTILE_OBJECT.XSPEED)
-				jr z, @r
-				and 0xf0
-				ld c,a
-				ld a,e
-				rra
-				rra
-				rra
-				rra
-				and 0x0f
-				or c
-		@r:
-				and 0x0f
-				ld c,a
-
-				ld a,d
-				and 0xf0
-				or c
-				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
-				jr nz,@t
-				add 0x10
-		@t:		ld c,a
-
-				
-				ld b, BLOCK_COLLISION_TABLE/256
-		@loop:		
-				ld a,(bc)
-				and TILE_COLLIDES
-				jr nz, @remove
-
-				ld a,c
-				add 0x10
-				ld c,a
-				dec l
-				jr nz, @loop				
-
-
-completed_projectile_collision_check:
-
-				ld l,(IY + PROJECTILE_OBJECT.XOFFSET)
-				ld h,(IY + PROJECTILE_OBJECT.YOFFSET)
-				ld c,(IY+0)
-				ld b,(IY+1)
-				DEC IYh
-
-				ld (IY + OBJECT.X),e
-				ld (IY + OBJECT.Y),d
-				
-				ld a,e
-				sub l
-				ld e,a
-				ld a,d
-				sub l
-				ld d,a				
-
 				or a
-				jp ADD_SPRITE_TO_CURRENT_LIST
-@remove:
-				dec IYh
-				scf
-				ret
+				jp ADD_SPRITE_TO_CURRENT_LIST ; bc=routine, de=location (uses HL)
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -916,9 +1156,6 @@ switch_screen_right:
                 ret
 
 
-
-
-
 ADD_OBJECT:		; add object template from DE into object group A; HL goes into object X/Y fields, 
 				; returns object in hl (or l=0, carry set if the list is full)
 				
@@ -980,7 +1217,6 @@ object_list_is_full:
 				scf
 				ret
 
-print "REMOVE_OBJECT", $
 REMOVE_OBJECT:			; remove the list object pointed to by IY, A is the previous link pointing to this object
 						; IY is left pointing at the previous object (or IYl=0, the list head)
 
@@ -1003,10 +1239,21 @@ REMOVE_OBJECT:			; remove the list object pointed to by IY, A is the previous li
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 best_level: db 0
-
-
-
 
 
 PLAYER.Xl: equ 0
@@ -1063,19 +1310,22 @@ PLAYER.FIRE_KEYADDR:equ 63
 ; (there doesn't seem to be a requirement for the size to be power-of-2)
 
 OBJECT.LINK:  equ 0 ; 0 link
-OBJECT.ID:    equ 1 ; 1 ID? (Perhaps this is implicit from one of the vectors)
+OBJECT.FLAGS: equ 1 ; 1 flags / ID? (ID might be implicit from one of the vectors)
 OBJECT.X:     equ 2 ; 2-3 Y/X
 OBJECT.Y:     equ 3
 OBJECT.W:     equ 4 ; 4-5 H/W
 OBJECT.H:     equ 5
 OBJECT.FRAME: equ 6 ; 6-7 call every frame   IY=this (return: carry set = remove this item)
-OBJECT.HIT:   equ 8 ; 8-9 call on collision  IY=this, IX=that (return: carry set = remove that item and stop walking this list)
+OBJECT.HIT:   equ 8 ; 8-9 call on collision  IY=this(group1), IX=that(group2) (return: carry set = remove items if bits 0/1 set in A)
 OBJECT.SIZEOF: equ 10
 ; Could keep IMP DEF data by increasing the size of the record
 ; - either decreases the number of items in the list
 ; - or makes walking slower if link contains 2 bytes or is encoded
 ; - or keep imp def in a parallel list at +256               <= try this one for now
 ; e.g. inc IYh; ld a,(IY+0); dec IYh
+
+
+TEMPLATE.SIZEOF: equ 2*OBJECT.SIZEOF - 3   ; object without link or xy, followed by same size imp def structure
 
 			ds align 256
 OBJECTS_GROUP0: ds 512 ; head link at 0, free link at 1 [0 means NULL]. Up to 25 objects of 10 bytes each
