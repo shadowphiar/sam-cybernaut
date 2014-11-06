@@ -79,7 +79,7 @@ CLEAR_OBJECT_GROUPS:
 				ld a,h
 				add 2
 				ld h,a
-				cp 	OBJECTS_GROUP2/256 +2
+				cp 	OBJECTS_GROUP_MAX/256 +2
 				jr c, @loop2
                 
                 
@@ -287,7 +287,7 @@ GAMEPHYSICS_INTCALLBACK:
 
 
 			; 	walk all the lists and call their frame vectors
-				ld IYh,OBJECTS_GROUP2/256
+				ld IYh,OBJECTS_GROUP_MAX/256
 @call_objects_group_loop:
 				xor a
 				ld (@object_last_link_pointer),a
@@ -621,8 +621,8 @@ ROCKET.TILESLISTl: equ 0
 ROCKET.TILESLISTh: equ 1
 ROCKET.ANIMSTATEl: equ 2 
 ROCKET.ANIMSTATEh: equ 3 
-ROCKET.ANIMSPEEDl: equ 4 
-ROCKET.ANIMSPEEDh: equ 5
+ROCKET.ANIMSPEED:  equ 4 
+ROCKET.SINCEFRAME: equ 5
 ROCKET.XOFFSET :   equ 6	; offset of the collision rectangle within the drawn sprite
 ROCKET.YOFFSET:    equ 7
 
@@ -631,13 +631,29 @@ STATIC_ROCKET_FRAME:
 				inc IYh
 				
 				ld a,(IY+ROCKET.ANIMSTATEl)
-				add (IY+ROCKET.ANIMSPEEDl)
+				add (IY+ROCKET.ANIMSPEED)
 				ld (IY+ROCKET.ANIMSTATEl),a
 				ld a,(IY+ROCKET.ANIMSTATEh)
-				adc (IY+ROCKET.ANIMSPEEDh)
+				adc 0
 				and 0x03
+				cp (IY+ROCKET.ANIMSTATEh)
 				ld (IY+ROCKET.ANIMSTATEh),a
+				ld l,a
+				jr z, @sameframe
+			
+			
+				ld a,(count_completed_frames)
+				ld (IY+ROCKET.SINCEFRAME),a
+				jr @newframe
 				
+@sameframe:				
+				ld a,(count_completed_frames)
+				sub (IY+ROCKET.SINCEFRAME)
+				cp 3
+				jr nc, @exitwithoutdrawing
+
+@newframe:
+				ld a,l
 				add a
 				
 				add (IY + ROCKET.TILESLISTl)
@@ -656,12 +672,19 @@ STATIC_ROCKET_FRAME:
 				ld d,a
 				
 				or a
-				jp ADD_SPRITE_TO_CURRENT_LIST
+				jp ADD_SPRITE_TO_CURRENT_LIST ;  bc=routine, de=location (uses HL)
 
+@exitwithoutdrawing:
+				dec IYh
+				or a
+				ret
+				
 
 				ds align 8
 UP_ROCKET_TILES: dw tiles.png_1_1ID, tiles.png_2_1ID, tiles.png_3_1ID, tiles.png_4_1ID
 DOWN_ROCKET_TILES: dw tiles.png_12_2ID, tiles.png_13_2ID, tiles.png_14_2ID, tiles.png_15_2ID
+UP_ROCKET_SPRITES: dw rockets.png_0_0ID, rockets.png_0_0ID, rockets.png_0_0ID, rockets.png_0_0ID
+DOWN_ROCKET_SPRITES: dw rockets.png_0_1ID, rockets.png_0_1ID, rockets.png_0_1ID, rockets.png_0_1ID
 
 
 
@@ -670,18 +693,140 @@ DOWN_ROCKET_TILES: dw tiles.png_12_2ID, tiles.png_13_2ID, tiles.png_14_2ID, tile
 
 STATIC_ROCKET_COLLIDE:
 
-				ld a,64
-				out (CLUT),a
+				ld a,(IY + OBJECT.FLAGS)
+				and FLAG.ISPLAYER
+				ret z
+
+
+				ld (IX + OBJECT.FRAME), FIRED_ROCKET_FRAME\256
+				ld (IX + OBJECT.FRAME+1), FIRED_ROCKET_FRAME/256
+				ld (IX + OBJECT.HIT),FIRED_ROCKET_HIT\256
+				ld (IX + OBJECT.HIT+1),FIRED_ROCKET_HIT/256
+
+				inc ixh
+				
+				ld a,(IX + ROCKET.TILESLISTl)
+				add 16
+				ld (IX + ROCKET.TILESLISTl),a
+				ld a,(IX + ROCKET.TILESLISTh)
+				adc 0
+				ld (IX + ROCKET.TILESLISTh),a
+				
+				
+				ld (IX + ROCKET.ANIMSPEED) , 90
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				
+				ld a,(IX+ROCKET.YOFFSET)
+				dec iXh
+				
+				ld c,a
+				neg
+				add (IX + OBJECT.Y)
+				ld (IX + OBJECT.Y),a
+
+				ld (IX + OBJECT.H),16
+				
+				
+				
+				ld h,a
+				ld l,(IX + OBJECT.X)
+				ld de, BLANKOUT.TEMPLATE
+				
+				ld a,(count_completed_frames)
+				ld (BLANKOUT.TEMPLATE.SINCEFRAME),a
+				
+				ld a, OBJECTS_GROUP4/256
+				call ADD_OBJECT ; add object template from DE into object group A; HL goes into object X/Y fields, 
+				
+				or a
+				ret
+
+
+
+
+FIRED_ROCKET_FRAME:
+
+				inc IYh
+				
+				ld a,(IY+ROCKET.ANIMSTATEl)
+				add (IY+ROCKET.ANIMSPEED)
+				ld (IY+ROCKET.ANIMSTATEl),a
+				ld a,(IY+ROCKET.ANIMSTATEh)
+				adc 0
+				and 0x03
+				ld (IY+ROCKET.ANIMSTATEh),a
+			
+				add a
+				
+				add (IY + ROCKET.TILESLISTl)
+				ld l,a
+				ld h, (IY + ROCKET.TILESLISTh)
+				ld c,(hl)
+				inc l
+				ld b,(hl)
+				
+				dec IYh
+				
+				ld e,(IY + OBJECT.X)
+				ld d,(IY + OBJECT.Y)
+				ld a,d
+				add 12
+				ld d,a
+				
+				or a
+				jp ADD_SPRITE_TO_CURRENT_LIST ;  bc=routine, de=location (uses HL)
+
 
 
 				or a
+				
 				ret
 				
+FIRED_ROCKET_HIT:
+
+				or a
+				
+				ret
+
+				
+
+BLANKOUT.SINCEFRAME: equ ROCKET.SINCEFRAME
+
+BLANKOUT.TEMPLATE:	db 0, 16, 16
+					dw BLANK_OUT_FRAME, 0
+BLANKOUT.TEMPLATE.SINCEFRAME: equ $+BLANKOUT.SINCEFRAME					
+					dw 0,0,0,0,0
+
+
+
+BLANK_OUT_FRAME:	
+				INC IYh
+				ld a,(count_completed_frames)
+				sub (IY+BLANKOUT.SINCEFRAME)
+				DEC IYh
+				cp 4
+				ccf
+				ret c
+				
+				ld d,(IY+OBJECT.Y)
+				ld e,(IY+OBJECT.X)
+				ld bc, tiles.png_0_0ID
+				or a
+				jp ADD_SPRITE_TO_CURRENT_LIST  ; bc=routine, de=location (uses HL)
 
 
 
 
-SHIP_TEMPLATE:		db 0, lasershot.png_0.WIDTH, lasershot.png_0.HEIGHT
+
+SHIP_TEMPLATE:		db FLAG.ISPLAYER, SHIP_WIDTH, SHIP_HEIGHT
 					dw SHIP_OBJECT_FRAME, SHIP_OBJECT_COLLISION
 					dw lasershot.png_1ID, -7*256,0,0,0
 
@@ -1295,9 +1440,11 @@ PLAYER.FIRE_KEYADDR:equ 63
 ; keeps separate lists of things that don't need to interact with each other to minimize walking time
 ; i.e. explosions and other graphical touches don't need to interact with anything
 ; suggest groups:
+; 0 - decorative (upper layer)
 ; 1 - player, player's laser fire
-; 2 - enemy ships, enemy bullets
+; 2 - enemy ships, enemy bullets, 
 ; 3 - bounty and powerups
+; 4 - background (must be drawn before anything which stores background)
 
 ; list of 1 walks the list of 2			(N squared!)
 ; player (only) walks the list of 3
@@ -1325,12 +1472,20 @@ OBJECT.SIZEOF: equ 10
 ; e.g. inc IYh; ld a,(IY+0); dec IYh
 
 
+FLAG.ISPLAYER:	equ 1
+
+
+
 TEMPLATE.SIZEOF: equ 2*OBJECT.SIZEOF - 3   ; object without link or xy, followed by same size imp def structure
 
 			ds align 256
 OBJECTS_GROUP0: ds 512 ; head link at 0, free link at 1 [0 means NULL]. Up to 25 objects of 10 bytes each
 OBJECTS_GROUP1: ds 512 ;
 OBJECTS_GROUP2: ds 512 ;
+OBJECTS_GROUP3: ds 512 ;
+OBJECTS_GROUP4: ds 512 ;
+
+OBJECTS_GROUP_MAX: equ OBJECTS_GROUP4
 
 LIST.HEADPTR: equ 0
 LIST.FREEPTR: equ 1

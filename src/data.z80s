@@ -71,4 +71,16 @@ IF $>16384
 	@PAGE: EQU @-PAGE + 1
 ENDIF
 
+    INC "../_build/rockets.png_3_1.sprite.z80s"
+@PAGE: 		   equ rockets.png_3_1ENDPAGE                
+
+IF $>16384
+	org $-16384
+	@PAGE: EQU @-PAGE + 1
+ENDIF
+
+
+
+
+
 DATAENDPAGE: equ @PAGE
