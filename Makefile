@@ -121,7 +121,7 @@ _build/lasershot.png_1.sprite.z80s: graphics/lasershot.png _build/mkdir
 	$(sampalette) $(PAL) -s -D -1 -b 0 -y 2 $<
 
 _build/rockets.png_3_1.sprite.z80s: graphics/rockets.png _build/mkdir
-	$(sampalette) $(PAL) -s -D -1 -b 48 -x 4 -y 2 $<
+	$(sampalette) $(PAL) -s -D -1 -a -b 48 -x 4 -y 2 $<
 
 _build/enemy1.png_5_1.sprite.z80s: graphics/enemy1.png _build/mkdir
 	$(sampalette) $(PAL) -s -D -1 -b 0 -x 6 -y 2 $<

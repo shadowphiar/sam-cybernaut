@@ -623,6 +623,7 @@ ROCKET.ANIMSTATEl: equ 2
 ROCKET.ANIMSTATEh: equ 3 
 ROCKET.ANIMSPEED:  equ 4 
 ROCKET.SINCEFRAME: equ 5
+FIRED_ROCKET.DIRECTION: equ 5
 ROCKET.XOFFSET :   equ 6	; offset of the collision rectangle within the drawn sprite
 ROCKET.YOFFSET:    equ 7
 
@@ -683,8 +684,8 @@ STATIC_ROCKET_FRAME:
 				ds align 8
 UP_ROCKET_TILES: dw tiles.png_1_1ID, tiles.png_2_1ID, tiles.png_3_1ID, tiles.png_4_1ID
 DOWN_ROCKET_TILES: dw tiles.png_12_2ID, tiles.png_13_2ID, tiles.png_14_2ID, tiles.png_15_2ID
-UP_ROCKET_SPRITES: dw rockets.png_0_0ID, rockets.png_0_0ID, rockets.png_0_0ID, rockets.png_0_0ID
-DOWN_ROCKET_SPRITES: dw rockets.png_0_1ID, rockets.png_0_1ID, rockets.png_0_1ID, rockets.png_0_1ID
+UP_ROCKET_SPRITES: dw rockets.png_0_0ID, rockets.png_1_0ID, rockets.png_2_0ID, rockets.png_3_0ID
+DOWN_ROCKET_SPRITES: dw rockets.png_0_1ID, rockets.png_1_1ID, rockets.png_2_1ID, rockets.png_3_1ID
 
 
 
@@ -715,29 +716,30 @@ STATIC_ROCKET_COLLIDE:
 				
 				ld (IX + ROCKET.ANIMSPEED) , 90
 				
-				
-				
-				
-				
-				
-				
-				
-				
-				
 				ld a,(IX+ROCKET.YOFFSET)
+				ld (IX + FIRED_ROCKET.DIRECTION), a
+				
+				ld (IX+ROCKET.YOFFSET),0
+				ld (IX+ROCKET.XOFFSET),4
+				
 				dec iXh
 				
 				ld c,a
 				neg
 				add (IX + OBJECT.Y)
 				ld (IX + OBJECT.Y),a
+				ld a,(IX + OBJECT.X)
+				add 4
+				ld (IX + OBJECT.X),a
 
 				ld (IX + OBJECT.H),16
+				ld (IX + OBJECT.W),8
 				
 				
-				
-				ld h,a
-				ld l,(IX + OBJECT.X)
+				ld h,(IX + OBJECT.Y)
+				ld a,(IX + OBJECT.X)
+				and 0xf0
+				ld l,a
 				ld de, BLANKOUT.TEMPLATE
 				
 				ld a,(count_completed_frames)
@@ -750,9 +752,12 @@ STATIC_ROCKET_COLLIDE:
 				ret
 
 
-
+ROCKETSPEED: equ 3	; need to do this in 8.8 and be slightly less than 3 (or perhaps, accelerate up to 3)
 
 FIRED_ROCKET_FRAME:
+
+				ld e,(IY + OBJECT.X)
+				ld d,(IY + OBJECT.Y)
 
 				inc IYh
 				
@@ -773,14 +778,34 @@ FIRED_ROCKET_FRAME:
 				inc l
 				ld b,(hl)
 				
-				dec IYh
-				
-				ld e,(IY + OBJECT.X)
-				ld d,(IY + OBJECT.Y)
+				ld a, (IY + FIRED_ROCKET.DIRECTION)
+				or a
 				ld a,d
-				add 12
+				jr z, @rocket_down
+				
+				sub 2*ROCKETSPEED
+				
+	@rocket_down:
+				add ROCKETSPEED
 				ld d,a
 				
+				
+				ld a,e
+				sub (IY + ROCKET.XOFFSET)
+				ld e,a
+				
+				
+				dec IYh
+
+
+				ld a,d
+				cp 176
+				ccf
+				ret c
+
+				ld (IY + OBJECT.Y),d
+
+								
 				or a
 				jp ADD_SPRITE_TO_CURRENT_LIST ;  bc=routine, de=location (uses HL)
 
