@@ -71,6 +71,8 @@ def navigate(sprite,x,y,reverse):
                     
                     if (not reverse) ^ (width+offset+height % 2):
                         testy += 1
+                        if testy >= height:
+                            testy -= 2
                     else:
                         testy -= 1
 
@@ -97,6 +99,8 @@ def navigate(sprite,x,y,reverse):
                     
                     if (not reverse) ^ (width+offset+height % 2):
                         testy += 1
+                        if testy >= height:
+                            testy -= 2
                     else:
                         testy -= 1
 
