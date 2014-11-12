@@ -349,10 +349,12 @@ objects_collision_outer_loop:
 				ld a, (IY + OBJECT.X)
 				ld c,a
 				add (IY + OBJECT.W)
+				dec a
 				ld e,a
 				ld a, (IY + OBJECT.Y)
 				ld b,a
 				add (IY + OBJECT.H)
+				dec a
 				ld d,a
 				
 				
@@ -369,6 +371,7 @@ objects_collision_inner_loop:
 				cp e
 				jr nc, objects_collision_inner_loop
 				add ( IX + OBJECT.W)
+				dec a
 				cp c
 				jr c, objects_collision_inner_loop
 				
@@ -376,6 +379,7 @@ objects_collision_inner_loop:
 				cp d
 				jr nc, objects_collision_inner_loop
 				add ( IX + OBJECT.H)
+				dec a
 				cp b
 				jr c, objects_collision_inner_loop
 
@@ -623,7 +627,6 @@ ROCKET.ANIMSTATEl: equ 2
 ROCKET.ANIMSTATEh: equ 3 
 ROCKET.ANIMSPEED:  equ 4 
 ROCKET.SINCEFRAME: equ 5
-FIRED_ROCKET.DIRECTION: equ 5
 ROCKET.XOFFSET :   equ 6	; offset of the collision rectangle within the drawn sprite
 ROCKET.YOFFSET:    equ 7
 
@@ -714,26 +717,30 @@ STATIC_ROCKET_COLLIDE:
 				ld (IX + ROCKET.TILESLISTh),a
 				
 				
-				ld (IX + ROCKET.ANIMSPEED) , 90
-				
 				ld a,(IX+ROCKET.YOFFSET)
-				ld (IX + FIRED_ROCKET.DIRECTION), a
+				ld c,a
+				dec a
+				cp 255	; C set for rockets moving upwards
 				
-				ld (IX+ROCKET.YOFFSET),0
-				ld (IX+ROCKET.XOFFSET),4
+				ld a,0
+				sbc 0
+				ld (IX + FIRED_ROCKET.SPEED), a
+				ld (IX + FIRED_ROCKET.SPEEDl), a
+				
+				ld (IX+FIRED_ROCKET.Yl),0
 				
 				dec iXh
 				
-				ld c,a
+				ld a,c
 				neg
 				add (IX + OBJECT.Y)
 				ld (IX + OBJECT.Y),a
 				ld a,(IX + OBJECT.X)
-				add 4
+				add FIRED_ROCKET_XOFFSET
 				ld (IX + OBJECT.X),a
 
 				ld (IX + OBJECT.H),16
-				ld (IX + OBJECT.W),8
+				ld (IX + OBJECT.W),16 - 2*FIRED_ROCKET_XOFFSET
 				
 				
 				ld h,(IX + OBJECT.Y)
@@ -752,48 +759,111 @@ STATIC_ROCKET_COLLIDE:
 				ret
 
 
-ROCKETSPEED: equ 3	; need to do this in 8.8 and be slightly less than 3 (or perhaps, accelerate up to 3)
+
+FIRED_ROCKET.TILESLISTl: equ 0
+FIRED_ROCKET.TILESLISTh: equ 1
+FIRED_ROCKET.ANIMSTATEl: equ 2 
+FIRED_ROCKET.ANIMSTATEh: equ 3 
+FIRED_ROCKET.SPEEDl:  equ 4 
+FIRED_ROCKET.SPEED:  equ 5
+FIRED_ROCKET.Yl :   equ 6
+FIRED_ROCKET.:    equ 7
+
+
+FIRED_ROCKET_ANIMSPEED: equ 90
+FIRED_ROCKET_XOFFSET: equ 4
+FIRED_ROCKET_THRUST: equ 60
 
 FIRED_ROCKET_FRAME:
 
-				ld e,(IY + OBJECT.X)
+				ld a,(IY + OBJECT.X)
+				sub FIRED_ROCKET_XOFFSET
+				ld e,a
 				ld d,(IY + OBJECT.Y)
 
 				inc IYh
 				
-				ld a,(IY+ROCKET.ANIMSTATEl)
-				add (IY+ROCKET.ANIMSPEED)
-				ld (IY+ROCKET.ANIMSTATEl),a
-				ld a,(IY+ROCKET.ANIMSTATEh)
+				ld l,(IY + FIRED_ROCKET.SPEEDl)
+				ld h,(IY + FIRED_ROCKET.SPEED)
+				bit 7,h
+				jr z, @rocket_down
+				
+				ld bc, 65536 - FIRED_ROCKET_THRUST
+				jr @
+	@rocket_down:
+				ld bc, FIRED_ROCKET_THRUST
+			@:	
+
+				add hl,bc
+				
+				ld b,h
+				ld c,l
+				sra b
+				rr c
+				sra b
+				rr c
+				sra b
+				rr c
+				sra b
+				rr c
+				sra b
+				rr c
+
+				sbc hl,bc				
+							
+				
+				ld (IY + FIRED_ROCKET.SPEEDl),l
+				ld (IY + FIRED_ROCKET.SPEED),h
+				
+				ld a,(IY + FIRED_ROCKET.Yl)
+				add l
+				ld (IY + FIRED_ROCKET.Yl),a
+				
+				ld a,d
+				adc h
+				ld d,a
+				
+
+				bit 7,h
+				jr nz, @no
+				add 15
+		@no:	and 0xf0
+				
+				ld c,a
+				ld a,e
+				rra
+				rra
+				rra
+				rra
+				and 0x0f
+				or c
+				ld c,a
+				ld b,BLOCK_COLLISION_TABLE/256
+				
+				ld a,(BC)
+				and  TILE_COLLIDES
+				jr nz, rocket_hits_the_wall
+
+
+
+
+				
+				ld a,(IY+FIRED_ROCKET.ANIMSTATEl)
+				add FIRED_ROCKET_ANIMSPEED
+				ld (IY+FIRED_ROCKET.ANIMSTATEl),a
+				ld a,(IY+FIRED_ROCKET.ANIMSTATEh)
 				adc 0
 				and 0x03
-				ld (IY+ROCKET.ANIMSTATEh),a
+				ld (IY+FIRED_ROCKET.ANIMSTATEh),a
 			
 				add a
 				
-				add (IY + ROCKET.TILESLISTl)
+				add (IY + FIRED_ROCKET.TILESLISTl)
 				ld l,a
-				ld h, (IY + ROCKET.TILESLISTh)
+				ld h, (IY + FIRED_ROCKET.TILESLISTh)
 				ld c,(hl)
 				inc l
 				ld b,(hl)
-				
-				ld a, (IY + FIRED_ROCKET.DIRECTION)
-				or a
-				ld a,d
-				jr z, @rocket_down
-				
-				sub 2*ROCKETSPEED
-				
-	@rocket_down:
-				add ROCKETSPEED
-				ld d,a
-				
-				
-				ld a,e
-				sub (IY + ROCKET.XOFFSET)
-				ld e,a
-				
 				
 				dec IYh
 
@@ -814,6 +884,26 @@ FIRED_ROCKET_FRAME:
 				or a
 				
 				ret
+
+
+
+rocket_hits_the_wall:
+				dec IYh
+				
+				ld l,e
+				ld h,d
+				ld a, OBJECTS_GROUP0/256
+
+				ld de, EXPLOSION.TEMPLATE
+
+				call ADD_OBJECT ; add object template from DE into object group A; HL goes into object X/Y fields, 
+				
+				
+				
+				scf
+				ret
+
+
 				
 FIRED_ROCKET_HIT:
 
@@ -846,6 +936,69 @@ BLANK_OUT_FRAME:
 				ld bc, tiles.png_0_0ID
 				or a
 				jp ADD_SPRITE_TO_CURRENT_LIST  ; bc=routine, de=location (uses HL)
+
+
+
+
+EXPLOSION_FRAMES:	FOR 8,dw explosion.png_{FOR}ID
+					dw 0
+
+EXPLOSION.TEMPLATE:	db 0, 16, 16
+					dw TRANSIENT_OBJECT_FRAME, 0
+					dw EXPLOSION_FRAMES, 150, 0,0,0
+
+
+TRANSIENT.ANIM_PTRl: equ 0
+TRANSIENT.ANIM_PTRh: equ 1
+TRANSIENT.ANIM_SPEED: equ 2
+TRANSIENT.ANIM_STATE: equ 3
+
+
+
+TRANSIENT_OBJECT_FRAME:	
+
+
+				ld e,(IY + OBJECT.X)
+				ld d,(IY + OBJECT.Y)
+				INC IYh
+				
+				ld l,(IY + TRANSIENT.ANIM_PTRl)
+				ld h,(IY + TRANSIENT.ANIM_PTRh)
+				
+				ld a,(IY + TRANSIENT.ANIM_STATE)
+				add (IY + TRANSIENT.ANIM_SPEED)
+				ld (IY + TRANSIENT.ANIM_STATE),a
+				
+				jr nc, @
+				inc hl
+				inc hl
+				ld (IY + TRANSIENT.ANIM_PTRl),l
+				ld (IY + TRANSIENT.ANIM_PTRh),h
+		@:		
+				ld c,(hl)
+				inc hl
+				ld b,(hl)
+				
+				DEC IYh
+				
+				ld a,b
+				or c
+				sub 1
+				
+				jp nc,ADD_SPRITE_TO_CURRENT_LIST  ; bc=routine, de=location (uses HL)
+				ret
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
