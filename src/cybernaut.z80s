@@ -131,7 +131,12 @@ DISPLAYSCREEN:  EQU $+1
                 LD BC,CLUT + 256*16
                 for 16, OUTD
                 
+ 				jr post_nmi
 
+ds 102-$
+				RETN
+
+post_nmi:
                 
 FRAMECLOCK: EQU $+1
                 LD A,00
@@ -185,7 +190,7 @@ get_keyboard_loop:
                 or 2
                 ld (show_timing_info),a
                 jr done_toggle_timing_display
- 
+
  
  
 no_toggle_timing_display: 
