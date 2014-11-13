@@ -216,7 +216,6 @@ setup_COLLISION_TABLE_loop:
                 ld a,h
                 ld IYh,a
                 
-                print $, setup_screen_Objects
 setup_screen_Objects:      
 				ld a,(IY+0)
 				
@@ -482,7 +481,6 @@ PROJECTILE_OBJECT_FRAME:
 			; h/l are still height/width
 			
 				; trace along the top/bottom edge
-			print "BREAK", $
 				ld a,e
 				rra
 				rra
@@ -548,7 +546,7 @@ PROJECTILE_OBJECT_FRAME:
 				rra
 				ld h,a	; number of additional squares we need to check
 
-
+print "bullet across horizontal boundary",$
 
 				
 				; c points to the right side (at either top or bottom - so recalculate top)
@@ -590,7 +588,7 @@ PROJECTILE_OBJECT_FRAME:
 				ld a,c
 				add 0x10
 				ld c,a
-				dec l
+				dec h
 				jr nz, @loop				
 
 
@@ -616,6 +614,7 @@ completed_projectile_collision_check:
 				jp ADD_SPRITE_TO_CURRENT_LIST
 @remove:
 				dec IYh
+				
 				scf
 				ret
 
@@ -1134,7 +1133,6 @@ check_blocked_left:
 				jr z,not_blocked_horizontal
 
 blocked_horizontal:
-print $
 				; special case, if the player is trying to enter a tunnel exactly one block high
 				; (which is the same height as some ships, so we can skip over it if not pixel aligned)
 				
@@ -1363,7 +1361,10 @@ not_blocked_vertical:
 				ld l,a
 				ld a,(IX + PLAYER.y)
 				add SHIP_HEIGHT - lasershot.png_0.HEIGHT
+			
 				ld h,a
+			
+			
 				
 				
 				ld de, LASER_TEMPLATE_R
@@ -1373,20 +1374,7 @@ not_blocked_vertical:
 @:				ld a, OBJECTS_GROUP1/256
 				call ADD_OBJECT
 
-			ld a,l
-			or a
-			jr z, whatwhatwhat
-
 				ld hl, sfx_shoot
-				ld a,(IX + PLAYER.x)
-				call SFX_START
-				jr no_new_firing
-
-whatwhatwhat:
-
-				ld a,112
-				out (CLUT),a
-				ld hl, sfx_explosion
 				ld a,(IX + PLAYER.x)
 				call SFX_START
 
