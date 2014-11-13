@@ -3,7 +3,7 @@ ASMFLAGS =
 pyz80 = ../pyz80/pyz80.py $(ASMFLAGS)
 sampalette = scripts/sampalette.py -q -o _build
 dskextract = scripts/dskextract.py -o _build
-
+sfx = scripts/sfx.py
 
 PAL = -p 0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
 
@@ -34,6 +34,7 @@ SOURCE = src/cybernaut.z80s  \
 		src/menu_star_effect.z80s \
 		_build/level1.z80s \
 		_build/tile_properties.z80s \
+		_build/sfx.inc \
 		
 
 
@@ -132,6 +133,9 @@ _build/tiles.png_15_11.sprite.z80s: graphics/tiles.png _build/mkdir
 
 
 
+_build/sfx.inc: music/music.dsk ../scripts/sfx.py _build/mkdir
+	$(dskextract) -x EFFECTS.M $<
+	$(sfx) < _build/EFFECTS.M > _build/sfx.inc
 
 
 

@@ -941,6 +941,13 @@ SAVE_CONFIG:	JP discop_save_config		;
  
                 
                 INC "../ext/ptplayer.z80s"   ; call RESETPLAYER and PLAYROUTINE
+                
+                INC "../_build/sfx.inc"
+
+sfx_shoot: 		equ sfx1
+sfx_explosion: 	equ sfx2
+
+                
 				INC "discops.z80s"
 
                 assert $ < (65536 - 4*256)

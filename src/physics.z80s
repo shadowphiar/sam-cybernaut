@@ -889,6 +889,11 @@ FIRED_ROCKET_FRAME:
 
 rocket_hits_the_wall:
 				dec IYh
+
+				ld hl,sfx_explosion
+				ld a,e
+				call sfx_start
+
 				
 				ld l,e
 				ld h,d
@@ -897,7 +902,6 @@ rocket_hits_the_wall:
 				ld de, EXPLOSION.TEMPLATE
 
 				call ADD_OBJECT ; add object template from DE into object group A; HL goes into object X/Y fields, 
-				
 				
 				
 				scf
@@ -1352,14 +1356,14 @@ not_blocked_vertical:
 				and h
 				jp z, no_new_firing
 		
+		
 
-
-				ld a,(IX + PLAYER.y)
-				add SHIP_HEIGHT - lasershot.png_0.HEIGHT
-				ld h,a
 				ld a,(IX + PLAYER.x)
 				add SHIP_WIDTH - lasershot.png_0.WIDTH
 				ld l,a
+				ld a,(IX + PLAYER.y)
+				add SHIP_HEIGHT - lasershot.png_0.HEIGHT
+				ld h,a
 				
 				
 				ld de, LASER_TEMPLATE_R
@@ -1368,6 +1372,12 @@ not_blocked_vertical:
 				ld de, LASER_TEMPLATE_L
 @:				ld a, OBJECTS_GROUP1/256
 				call ADD_OBJECT
+
+
+
+				ld hl, sfx_shoot
+				ld a,(IX + PLAYER.x)
+				call SFX_START
 
 
 no_new_firing:
