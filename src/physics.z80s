@@ -1373,9 +1373,20 @@ not_blocked_vertical:
 @:				ld a, OBJECTS_GROUP1/256
 				call ADD_OBJECT
 
-
+			ld a,l
+			or a
+			jr z, whatwhatwhat
 
 				ld hl, sfx_shoot
+				ld a,(IX + PLAYER.x)
+				call SFX_START
+				jr no_new_firing
+
+whatwhatwhat:
+
+				ld a,112
+				out (CLUT),a
+				ld hl, sfx_explosion
 				ld a,(IX + PLAYER.x)
 				call SFX_START
 
