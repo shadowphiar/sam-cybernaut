@@ -45,8 +45,6 @@ MAINMENU:
 				ld (NEXT_MENU_TEXT),hl
 				ld a,1
 				ld (MENU_TEXT_DELAY),a
-				ld a,MENU_LINE_TOP
-				ld (MENU_TEXT_NEXT_LINE),a
 
 
                 jp MAINLOOP
@@ -92,7 +90,10 @@ done_menu_text_update_repeat:
 NEXT_MENU_TEXT: equ $+1		
 				ld hl, MENU_TEXT_ROLLING
 
+MENU_LINE_TOP: equ 100
+				ld d,MENU_LINE_TOP
 
+start_next_line:
 				ld c,l
 				ld b,h
 				
@@ -112,9 +113,24 @@ NEXT_MENU_TEXT: equ $+1
 				add a
 				add a
 				ld e,a
-MENU_LINE_TOP: equ 100
-MENU_TEXT_NEXT_LINE: equ $+1
-				ld d,MENU_LINE_TOP
+				
+				push hl
+				call ADD_STRING_TO_CURRENT_LIST      ; call with BC = string (accessible in LMEM), and DE = 192/256 pixel location (uses HL)
+				pop hl
+				
+				ld a,d
+				add 8
+				ld d,a
+				
+				dec hl
+				ld a,(hl)
+				inc hl
+				
+				cp 10
+				jr z, start_next_line
+				
+				ld e,a
+
 
 				ld a,(count_completed_frames)
 menu_text_repeat_until: equ $+1
@@ -122,40 +138,21 @@ menu_text_repeat_until: equ $+1
 				
 				jr nz, @
 				ld (NEXT_MENU_TEXT),hl
-				dec hl
-				ld a,(hl)
-				cp 10
-				jr z,newline
 				
-				cp 1
-
-				ld a, 100
+				ld a, 93
 				ld (MENU_TEXT_DELAY),a
-				
-				ld a,MENU_LINE_TOP
-				ld (MENU_TEXT_NEXT_LINE),a
+
+				ld a,e
+				cp 1
 				
 				jr nz, @
 				
 				ld hl,MENU_TEXT_ROLLING
 				ld (NEXT_MENU_TEXT),hl
-				jr @
-				
-newline:
-				ld a,1
-				ld (MENU_TEXT_DELAY),a
-				
-				ld a,(MENU_TEXT_NEXT_LINE)
-				add 8
-				ld (MENU_TEXT_NEXT_LINE),a
-
-
-				
 @:
 
 		
-				call ADD_STRING_TO_CURRENT_LIST      ; call with BC = string (accessible in LMEM), and DE = 192/256 pixel location (uses HL)
-
+				
 
 
 
@@ -269,6 +266,7 @@ MENU_TEXT_ROLLING:
 				db 10
 				dm "ESC for menu"
 				db 0   
+				db 0
 				dm "             "
 				db 10
 				dm "            "
@@ -295,6 +293,7 @@ MENU_TEXT_ROLLING:
 				db 10
 				dm "Machine"
 				db 0
+				db 0
 				dm "            "
 				db 10
 				dm " "
@@ -315,11 +314,24 @@ MENU_TEXT_ROLLING:
 				db 0
 				dm "  Graphics by  "
 				db 10
-				dm " Josef Prokes "
+				dm " SILVER SWORD "
 				db 0
 				dm "           "
 				db 10
 				dm "            "
 				db 0
+				dm "Special Thanks"
+				db 10
+				dm "Colin Piggot"
+				db 0
+				db 10
+				dm " Balor Price "
+				db 0
+				db 10
+				dm " Simon Owen "
+				db 0
+				dm "              "
+				db 10
+				dm "          "
 				db 1
 				
