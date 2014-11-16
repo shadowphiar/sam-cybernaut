@@ -44,20 +44,23 @@ for j in range(h/11):
         sprites = []
         for y in range(11):
             n = (j*11+y)*w + i*16
-            room.extend( l['data'][ n : n+16 ] )
             for x in range(16):
-                d = max (0, int(l['data'][ n+x ]) - 1)
-                if d in (17,18,19,20):
+                room.append( max (0, int(l['data'][ n+x ]) - 1) )            
+
+    
+        for y in range(11):        
+            for x in range(16):
+                if room[16*y+x] in (17,18,19,20):
                     s = y
-                    while (s > 0) and 'COLLIDES' not in tile[l['data'][ (j*11+s-1)*w + i*16+x ]]:
+                    while (s > 0) and 'COLLIDES' not in tile[room[16*(s-1)+x]]:
                         s -= 1 
                 
                     sprites.append("    DB 2,"+str(16*x)+","+str(16*s)+",0,16,"+str((y-s+1)*16))
                     sprites.append("    DW STATIC_ROCKET_FRAME, STATIC_ROCKET_COLLIDE, UP_ROCKET_TILES,"+str((100*(x+y)) % 1024)+",30,"+str(256*(256-(y-s)*16))+",0")
                                                                             
-                elif d in (44,45,46,47):
+                elif room[16*y+x] in (44,45,46,47):
                     s = y
-                    while (s < 10) and 'COLLIDES' not in tile[l['data'][ (j*11+s+1)*w + i*16+x ]]:
+                    while (s < 10) and 'COLLIDES' not in tile[room[16*(s+1)+x]]:
                         s += 1
                     sprites.append("    DB 2,"+str(16*x)+","+str(16*y)+",0,16,"+str((s-y+1)*16))
                     sprites.append("    DW STATIC_ROCKET_FRAME, STATIC_ROCKET_COLLIDE, DOWN_ROCKET_TILES,"+str((100*(x+y)) % 1024)+",30,0,0")
@@ -67,7 +70,7 @@ for j in range(h/11):
         assert len(room) == 16*11
         if max(room) > 1:
             roomindex[(j,i)] = len(rooms) * (16*11)
-            rooms.append( "  @d"+str(j)+"_"+str(i)+":     DB " + ','.join([str(d-1 if d>0 else 0) for d in room]))
+            rooms.append( "  @d"+str(j)+"_"+str(i)+":     DB " + ','.join([str(d) for d in room]))
             rooms.extend(sprites)
             rooms.append( "    db 255 ; objects end")
         
