@@ -64,7 +64,18 @@ for j in range(h/11):
                         s += 1
                     sprites.append("    DB 2,"+str(16*x)+","+str(16*y)+",0,16,"+str((s-y+1)*16))
                     sprites.append("    DW STATIC_ROCKET_FRAME, STATIC_ROCKET_COLLIDE, DOWN_ROCKET_TILES,"+str((100*(x+y)) % 1024)+",30,0,0")
-            
+
+
+                elif room[16*y+x] in (33,62,63,64):
+                    sprites.append("    DB 4,"+str(16*x)+","+str(16*y)+",0,16,16")
+                    sprites.append("    DW STATIC_TURRET_FRAME, 0, RIGHT_TURRET_TILES,0,0,0,0")
+
+
+                elif room[16*y+x] in (58,59,60,61):
+                    sprites.append("    DB 4,"+str(16*x)+","+str(16*y)+",0,16,16")
+                    sprites.append("    DW STATIC_TURRET_FRAME, 0, LEFT_TURRET_TILES,0,0,0,0")
+
+
             
             
         assert len(room) == 16*11

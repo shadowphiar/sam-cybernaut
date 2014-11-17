@@ -46,7 +46,8 @@ DATA = _build/menu.png.samscreen.mdat.gz \
 	_build/explosion.png_7.sprite.z80s \
 	_build/enemy1.png_5_1.sprite.z80s \
 	_build/lasershot.png_1.sprite.z80s \
-	_build/rockets.png_3_1.sprite.z80s
+	_build/rockets.png_3_1.sprite.z80s \
+	_build/shots.png_11.sprite.z80s
 
 cybernaut.dsk: $(SOURCE) $(OBJ) _build/data.sym _build/mkdir
 	date +%Y-%m-%d > _build/version
@@ -125,8 +126,10 @@ _build/rockets.png_3_1.sprite.z80s: graphics/rockets.png _build/mkdir
 	$(sampalette) $(PAL) -s -D -1 -a -b 48 -x 4 -y 2 $<
 
 _build/enemy1.png_5_1.sprite.z80s: graphics/enemy1.png _build/mkdir
-	$(sampalette) $(PAL) -s -D -1 -b 0 -x 6 -y 2 $<
+	$(sampalette) $(PAL) -s -D -1 -b 48 -x 6 -y 2 $<
 
+_build/shots.png_11.sprite.z80s: graphics/shots.png _build/mkdir
+	$(sampalette) $(PAL) -s -D -1 -b 0 -y 12 $<
 
 _build/tiles.png_15_11.sprite.z80s: graphics/tiles.png _build/mkdir
 	$(sampalette) $(PAL) -s -D -c -a -x 16 -y 12 -b 48 $<

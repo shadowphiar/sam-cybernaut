@@ -628,7 +628,7 @@ ROCKET.ANIMSPEED:  equ 4
 ROCKET.SINCEFRAME: equ 5
 ROCKET.XOFFSET :   equ 6	; offset of the collision rectangle within the drawn sprite
 ROCKET.YOFFSET:    equ 7
-
+ROCKET... : equ 9
 
 STATIC_ROCKET_FRAME:
 				inc IYh
@@ -991,6 +991,128 @@ TRANSIENT_OBJECT_FRAME:
 				jp nc,ADD_SPRITE_TO_CURRENT_LIST  ; bc=routine, de=location (uses HL)
 				ret
 
+
+
+
+
+
+
+
+
+STATIC_TURRET.TILESETl   : equ 0
+STATIC_TURRET.TILESETh   : equ 1
+STATIC_TURRET.STATE      : equ 2		; 0 closed and waiting for timeout, 1 opening, 2 firing, 3 closing
+STATIC_TURRET.CLOCK      : equ 3
+
+STATIC_TURRET.SINCEFRAME : equ 5
+STATIC_TURRET.TARGETX : equ 8
+STATIC_TURRET.TARGETY : equ 9
+
+
+
+TURRET_CLOSED_TIME: equ 250
+
+
+
+
+ds align 8
+RIGHT_TURRET_TILES: dw tiles.png_1_2ID, tiles.png_0_4ID, tiles.png_15_3ID, tiles.png_14_3ID
+LEFT_TURRET_TILES: dw tiles.png_10_3ID, tiles.png_11_3ID, tiles.png_12_3ID, tiles.png_13_3ID
+
+
+STATIC_TURRET_FRAME:
+			INC IYh
+		
+			bit 0,(IY + STATIC_TURRET.STATE)
+			jr z, turret_notanimating
+			
+			dec (IY + STATIC_TURRET.CLOCK)
+			jr nz, turret_nonewframe		
+
+			
+			ld (IY + STATIC_TURRET.CLOCK), 5
+
+			ld a,(count_completed_frames)
+			ld (IY+ROCKET.SINCEFRAME),a
+
+			
+			bit 1,(IY + STATIC_TURRET.STATE)
+			jr nz, turret_closing
+			
+			ld a,(IY + STATIC_TURRET.TILESETl)
+			add 2
+			ld (IY + STATIC_TURRET.TILESETl), a
+			
+			and 0x7
+			cp 6
+			jr nz, turret_newframe
+			
+			inc (IY + STATIC_TURRET.STATE)
+			jr turret_newframe
+			
+turret_closing:
+			ld a,(IY + STATIC_TURRET.TILESETl)
+			sub 2
+			ld (IY + STATIC_TURRET.TILESETl), a
+			
+			and 0x7
+			jr nz, turret_newframe
+			
+			
+			ld (IY + STATIC_TURRET.CLOCK), TURRET_CLOSED_TIME
+			
+			ld (IY + STATIC_TURRET.STATE),0
+			jr turret_newframe
+			
+
+
+
+turret_firing:
+
+
+			ld (IY + STATIC_TURRET.CLOCK), 1
+			
+			inc (IY + STATIC_TURRET.STATE)
+			
+			jr turret_nonewframe
+
+turret_notanimating:		
+			bit 1,(IY + STATIC_TURRET.STATE)
+			jr nz, turret_firing
+			
+			dec (IY + STATIC_TURRET.CLOCK)
+			jr nz, turret_nonewframe
+			
+			inc (IY + STATIC_TURRET.STATE)
+			ld (IY + STATIC_TURRET.CLOCK),1
+
+			
+turret_nonewframe:
+turret_newframe:
+		
+			ld a,(count_completed_frames)
+			sub (IY+ROCKET.SINCEFRAME)
+			cp 3
+			jr nc, turret_finished
+
+			ld l,(IY + STATIC_TURRET.TILESETl)
+			ld h, (IY + STATIC_TURRET.TILESETh)
+			ld c,(hl)
+			inc l
+			ld b,(hl)
+			
+			dec IYh
+			
+			ld e,(IY + OBJECT.X)
+			ld d,(IY + OBJECT.Y)
+			
+			or a
+			jp ADD_SPRITE_TO_CURRENT_LIST ;  bc=routine, de=location (uses HL)			
+			
+turret_finished:
+			dec IYh
+			or a
+			ret
 
 
 
