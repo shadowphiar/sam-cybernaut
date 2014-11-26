@@ -902,6 +902,7 @@ rocket_hits_the_wall:
 
 				call ADD_OBJECT ; add object template from DE into object group A; HL goes into object X/Y fields, 
 				
+				add h
 				
 				scf
 				ret
@@ -1001,16 +1002,20 @@ TRANSIENT_OBJECT_FRAME:
 
 STATIC_TURRET.TILESETl   : equ 0
 STATIC_TURRET.TILESETh   : equ 1
-STATIC_TURRET.STATE      : equ 2		; 0 closed and waiting for timeout, 1 opening, 2 firing, 3 closing
-STATIC_TURRET.CLOCK      : equ 3
+STATIC_TURRET.CLOCK      : equ 2
+STATIC_TURRET.STATE      : equ 3		; 0 closed and waiting for timeout, 1 opening, 2 firing, 3 closing
+STATIC_TURRET.SHOTS_PER_VOLLEY   : equ 4
+STATIC_TURRET.SHOTS_TO_FIRE      : equ 5
 
-STATIC_TURRET.SINCEFRAME : equ 5
+STATIC_TURRET.CLOSED_TIME   : equ 6
+
+STATIC_TURRET.SINCEFRAME : equ 7
 STATIC_TURRET.TARGETX : equ 8
 STATIC_TURRET.TARGETY : equ 9
 
 
 
-TURRET_CLOSED_TIME: equ 250
+TURRET_RELOAD_TIME: equ 7
 
 
 
@@ -1021,14 +1026,16 @@ LEFT_TURRET_TILES: dw tiles.png_10_3ID, tiles.png_11_3ID, tiles.png_12_3ID, tile
 
 
 STATIC_TURRET_FRAME:
+			ld d,(IY + OBJECT.Y)
+			ld e,(IY + OBJECT.X)
 			INC IYh
-		
-			bit 0,(IY + STATIC_TURRET.STATE)
-			jr z, turret_notanimating
-			
+	
 			dec (IY + STATIC_TURRET.CLOCK)
-			jr nz, turret_nonewframe		
-
+			jp nz, turret_nonewframe
+	
+			bit 0,(IY + STATIC_TURRET.STATE)
+			jp z, turret_notanimating
+			
 			
 			ld (IY + STATIC_TURRET.CLOCK), 5
 
@@ -1047,6 +1054,9 @@ STATIC_TURRET_FRAME:
 			cp 6
 			jr nz, turret_newframe
 			
+			ld a,(IY + STATIC_TURRET.SHOTS_PER_VOLLEY)
+			ld (IY + STATIC_TURRET.SHOTS_TO_FIRE),a
+			
 			inc (IY + STATIC_TURRET.STATE)
 			jr turret_newframe
 			
@@ -1058,8 +1068,8 @@ turret_closing:
 			and 0x7
 			jr nz, turret_newframe
 			
-			
-			ld (IY + STATIC_TURRET.CLOCK), TURRET_CLOSED_TIME
+			ld a, (IY + STATIC_TURRET.CLOSED_TIME)
+			ld (IY + STATIC_TURRET.CLOCK), a
 			
 			ld (IY + STATIC_TURRET.STATE),0
 			jr turret_newframe
@@ -1069,9 +1079,59 @@ turret_closing:
 
 turret_firing:
 
+			ld hl,sfx_fire
+			ld a,e
+			call sfx_start
 
-			ld (IY + STATIC_TURRET.CLOCK), 1
+			ld a,e
+			add 6
+			ld l,a
+			ld a,d
+			add 6
+			ld h,a
+					
+			ld de, BULLET_TEMPLATE		
+			ld a, OBJECTS_GROUP2/256
+			call ADD_OBJECT
+
+
+
+				; see if the gun is pointing left or right, then choose a direction, set the image and speed from direction.
+				
+assert( PROJECTILE_OBJECT.DRAWING_IDl ==  0)
+
+assert( PROJECTILE_OBJECT.XSPEEDl ==  2)
+assert( PROJECTILE_OBJECT.YSPEEDl ==  4)
+
+				; do this properly soon, but for demo purposes just pick right/left
+				ld a,(IY + STATIC_TURRET.TILESETl)
+				cp (RIGHT_TURRET_TILES + 6) \ 256
+				jr z, already_pointing_right
+
+				inc h
+				ld (hl),shots.png_10ID \256
+				inc l
+				ld (hl),shots.png_10ID /256
+				inc l
+				inc l
+				ld (hl),255
+
+
+
+already_pointing_right:				
+
+
+
+
+			dec (IY + STATIC_TURRET.SHOTS_TO_FIRE)
+			jr z, start_closing
+
 			
+			ld (IY + STATIC_TURRET.CLOCK), TURRET_RELOAD_TIME
+			jr turret_nonewframe
+
+start_closing:
+			ld (IY + STATIC_TURRET.CLOCK), 1
 			inc (IY + STATIC_TURRET.STATE)
 			
 			jr turret_nonewframe
@@ -1079,10 +1139,7 @@ turret_firing:
 turret_notanimating:		
 			bit 1,(IY + STATIC_TURRET.STATE)
 			jr nz, turret_firing
-			
-			dec (IY + STATIC_TURRET.CLOCK)
-			jr nz, turret_nonewframe
-			
+						
 			inc (IY + STATIC_TURRET.STATE)
 			ld (IY + STATIC_TURRET.CLOCK),1
 
@@ -1117,10 +1174,15 @@ turret_finished:
 
 
 
+BULLET_TEMPLATE:	db 0, 4, 4
+					dw PROJECTILE_OBJECT_FRAME, 0
+					dw shots.png_1ID, 1*256,-1*256,4*256+4,0
 
 
+SHOT_ID_LIST:	    FOR 12, dw shots.png_{FOR}ID
 
-
+ds align 256
+WORD_SINTABLE:		FOR 128, DW 500.0*sin(FOR * pi * 0.5 / 128.0)
 
 
 

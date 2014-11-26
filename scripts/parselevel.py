@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import json, sys
+from random import randint
 
 tl = json.loads(sys.stdin.read())
 
@@ -68,12 +69,12 @@ for j in range(h/11):
 
                 elif room[16*y+x] in (33,62,63,64):
                     sprites.append("    DB 4,"+str(16*x)+","+str(16*y)+",0,16,16")
-                    sprites.append("    DW STATIC_TURRET_FRAME, 0, RIGHT_TURRET_TILES,0,0,0,0")
+                    sprites.append("    DW STATIC_TURRET_FRAME, 0, RIGHT_TURRET_TILES,"+str(randint(15,50))+",4,75,0")
 
 
                 elif room[16*y+x] in (58,59,60,61):
                     sprites.append("    DB 4,"+str(16*x)+","+str(16*y)+",0,16,16")
-                    sprites.append("    DW STATIC_TURRET_FRAME, 0, LEFT_TURRET_TILES,0,0,0,0")
+                    sprites.append("    DW STATIC_TURRET_FRAME, 0, LEFT_TURRET_TILES,"+str(randint(15,50))+",4,75,0")
 
 
             

@@ -951,6 +951,9 @@ SAVE_CONFIG:	JP discop_save_config		;
 
 sfx_shoot: 		equ sfx1
 sfx_explosion: 	equ sfx2
+sfx_fire: 		equ sfx3
+sfx_recoil: 	equ sfx4
+sfx_rumble: 	equ sfx5
 
                 
 				INC "discops.z80s"
