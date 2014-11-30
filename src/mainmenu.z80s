@@ -129,6 +129,16 @@ start_next_line:
 				cp 10
 				jr z, start_next_line
 				
+				cp 9
+				jr nz, eol
+	
+				ld a,d
+				sub 16
+				ld d,a
+				jr start_next_line
+	
+				
+eol:				
 				ld e,a
 
 
@@ -284,16 +294,16 @@ MENU_TEXT_ROLLING:
 				dm "  is proud  "
 				db 10
 				dm "to present"
-				db 0
+				db 0,9
 				dm "CYBERNAUT I."
 				db 10
-				dm "          "
+				dm "        "
 				db 10
 				dm "The Fighting"
 				db 10
 				dm "Machine"
 				db 0
-				db 0
+				db 0,9
 				dm "            "
 				db 10
 				dm " "

@@ -1020,7 +1020,7 @@ TURRET_RELOAD_TIME: equ 7
 
 
 
-ds align 8
+ds align 16
 RIGHT_TURRET_TILES: dw tiles.png_1_2ID, tiles.png_0_4ID, tiles.png_15_3ID, tiles.png_14_3ID
 LEFT_TURRET_TILES: dw tiles.png_10_3ID, tiles.png_11_3ID, tiles.png_12_3ID, tiles.png_13_3ID
 
@@ -1098,29 +1098,29 @@ turret_firing:
 
 				; see if the gun is pointing left or right, then choose a direction, set the image and speed from direction.
 				
-assert( PROJECTILE_OBJECT.DRAWING_IDl ==  0)
+			ld a, (IY + STATIC_TURRET.SHOTS_TO_FIRE)
+			rla
+			rla
+			rla
+			rla
+			add 32
 
-assert( PROJECTILE_OBJECT.XSPEEDl ==  2)
-assert( PROJECTILE_OBJECT.YSPEEDl ==  4)
-
-				; do this properly soon, but for demo purposes just pick right/left
-				ld a,(IY + STATIC_TURRET.TILESETl)
-				cp (RIGHT_TURRET_TILES + 6) \ 256
-				jr z, already_pointing_right
-
-				inc h
-				ld (hl),shots.png_10ID \256
-				inc l
-				ld (hl),shots.png_10ID /256
-				inc l
-				inc l
-				ld (hl),255
+			
+			ld d,a
+			set 7,d
 
 
+			neg
+			add 127
 
-already_pointing_right:				
+			bit 3, (IY + STATIC_TURRET.TILESETl)
+			jr z, turret_pointing_right								
+			or 128
+		turret_pointing_right:
 
-
+			ld e,a
+			
+			call CHOOSE_SHOT_IMAGE_AND_SPEED
 
 
 			dec (IY + STATIC_TURRET.SHOTS_TO_FIRE)
@@ -1176,13 +1176,111 @@ turret_finished:
 
 BULLET_TEMPLATE:	db 0, 4, 4
 					dw PROJECTILE_OBJECT_FRAME, 0
-					dw shots.png_1ID, 1*256,-1*256,4*256+4,0
+					dw shots.png_0ID, 0,0,4*256+4,0
 
-
-SHOT_ID_LIST:	    FOR 12, dw shots.png_{FOR}ID
-
+					ds align 32
+SHOT_ID_LIST:	    dw shots.png_0ID, shots.png_1ID, shots.png_1ID, shots.png_2ID, shots.png_3ID, shots.png_4ID, shots.png_5ID, shots.png_5ID
+					dw shots.png_6ID, shots.png_7ID, shots.png_7ID, shots.png_8ID, shots.png_9ID, shots.png_10ID, shots.png_11ID, shots.png_11ID
 ds align 256
-WORD_SINTABLE:		FOR 128, DW 500.0*sin(FOR * pi * 0.5 / 128.0)
+WORD_SINTABLE:		FOR 128, DW 725.0*sin(FOR * pi * 0.5 / 128.0)
+
+
+
+CHOOSE_SHOT_IMAGE_AND_SPEED:
+					; input HL points to a projectile object
+					; input D = magnitude Y, E = magnitude X
+					;			where [7] indicates direction, [6:0] are angle within a quarter circle
+
+					
+
+					inc h
+assert( PROJECTILE_OBJECT.DRAWING_IDl ==  0)
+					
+					ld a,e
+					and 0x80
+					ld c,a
+					
+					ld a,d
+					xor e
+					xor 0x80
+					rra			
+					and 0x40
+					or c
+					ld c,a
+					
+					and 0x40
+					ld a,d
+					jr nz,@+
+					ld a,e
+				@:	
+					rra
+					and 0x3f
+					or c				
+								; range 256
+
+
+					rra			; range 128
+					rra			; range 64
+					rra			; range 32
+					and 0x1e		; range 16 << 1	
+					add SHOT_ID_LIST \ 256
+					ld c,a
+					ld b, SHOT_ID_LIST / 256
+
+					ld a,(bc)
+					ld (hl),a
+					inc l
+					inc c
+					ld a,(bc)
+					ld (hl),a
+					inc l
+					
+					ld b, WORD_SINTABLE / 256
+									
+assert( PROJECTILE_OBJECT.XSPEEDl ==  2)
+					ld a,e
+					or a
+					rla
+					ld c,a
+					
+					ld a,(bc)
+					jr nc, @+
+					cpl
+					scf
+			@:		ld (hl),a
+					inc l
+					inc c
+					ld a,(bc)		
+					
+					jr nc, @+
+					cpl
+			@:		ld (hl),a
+					inc l
+
+assert( PROJECTILE_OBJECT.YSPEEDl ==  4)										
+					ld a,d
+					or a
+					rla
+					ld c,a
+					
+					ld a,(bc)
+					jr nc, @+
+					cpl
+					scf
+			@:		ld (hl),a
+					inc l
+					inc c
+					ld a,(bc)		
+					
+					jr nc, @+
+					cpl
+			@:		ld (hl),a
+					inc l
+					
+
+				ret
+
+	
 
 
 
