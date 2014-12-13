@@ -135,7 +135,8 @@ SWITCH_HMPR:
 
 	
 
-				ds align 257
+				ds align 256
+				ds ($/256)
 IM2TARGET:		
 
 IM2TARGETBYTE: equ $/256				

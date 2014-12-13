@@ -47,7 +47,8 @@
 
                 JP   LMEM
 
-
+test:			ld a,","
+			assert $ == test + 2
 
 				ORG SCREENFUNCTIONORG
 				DUMP SCREENPAGESPECIAL + 1, SCREENFUNCTIONORG \ 16384
@@ -745,7 +746,7 @@ SPRITE_LIST_FILL_REQUEST: equ $+2
 				ld IY, SPRITE_LIST_FRAME_0
 
 				ld a,IYh
-				xor (SPRITE_LIST_FRAME_0/256) ^ (SPRITE_LIST_FRAME_1/256)
+				xor 0+  (SPRITE_LIST_FRAME_0/256) ^ (SPRITE_LIST_FRAME_1/256)
 				ld (SPRITE_LIST_FILL_REQUEST+1),a
 
 draw_loop_return_address:
