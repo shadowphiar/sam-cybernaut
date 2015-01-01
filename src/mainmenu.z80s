@@ -272,79 +272,47 @@ panel_layout:
 
 				   ;1234567890123456
 MENU_TEXT_ROLLING:
-				dm "FIRE to start"
-				db 10
-				dm "ESC for menu"
-				db 0   
+				dm "FIRE to start",10
+				dm "ESC for menu",0
 				db 0
-				dm "             "
-				db 10
-				dm "            "
-				db 0   
-				dm "MNEMOTECH"
-				db 0
-				dm "in association"
-				db 10
-				dm "with"
-				db 0
-				dm " SILVER SWORD "
-				db 10
-				dm "    "
-				db 0
-				dm "  is proud  "
-				db 10
-				dm "to present"
+				dm "             ",10
+				dm "            ",0
+				dm "MNEMOTECH",0
+				dm "in association",10
+				dm "with",0
+				dm " SILVER SWORD ",10
+				dm "    ",0
+				dm "  is proud  ",10
+				dm "to present",0
+				db 9
+				dm "CYBERNAUT I.",10
+				dm "        ",10
+				dm "The Fighting",10
+				dm "Machine",0
 				db 0,9
-				dm "CYBERNAUT I."
-				db 10
-				dm "        "
-				db 10
-				dm "The Fighting"
-				db 10
-				dm "Machine"
-				db 0
-				db 0,9
-				dm "            "
-				db 10
-				dm " "
-				db 10
-				dm "            "
-				db 10
-				dm "       "
-				db 0
-				dm "Build version"
-				db 10
+				dm "            ",10
+				dm " ",10
+				dm "            ",10
+				dm "       ",0
+				dm "Build version",10
 				MDAT "../_build/version"
 				db 0
-				dm "Programming by"
+				dm "Programming by",10
+				dm "Andrew Collier",10
+				dm "           ",0
+				dm "  Graphics by  ",10
+				dm " SILVER SWORD ",0
+				dm "           ",10
+				dm "            ",0
+				dm "Special Thanks",10
+				dm "Colin Piggot",0
 				db 10
-				dm "Andrew Collier"
+				dm "Josef Prokes",0
 				db 10
-				dm "           "
-				db 0
-				dm "  Graphics by  "
+				dm " Balor Price ",0
 				db 10
-				dm " SILVER SWORD "
-				db 0
-				dm "           "
-				db 10
-				dm "            "
-				db 0
-				dm "Special Thanks"
-				db 10
-				dm "Colin Piggot"
-				db 0
-				db 10
-				dm "Josef Prokes"
-				db 0
-				db 10
-				dm " Balor Price "
-				db 0
-				db 10
-				dm " Simon Owen "
-				db 0
-				dm "              "
-				db 10
+				dm " Simon Owen ",0
+				dm "              ",10
 				dm "          "
 				db 1
 				
