@@ -7,13 +7,17 @@ sfx = scripts/sfx.py
 
 PAL = -p 0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
 
-all: cybernaut.dsk
+all: cybernaut.dsk cybernaut-dist.dsk
 
 clean:
-	rm -rf _build cybernaut.dsk
+	rm -rf _build cybernaut.dsk cybernaut-dist.dsk
 
 run: cybernaut.dsk
 	open $<
+
+run-dist: cybernaut-dist.dsk
+	open $<
+
 
 _build/mkdir:
 	mkdir -p _build
@@ -55,7 +59,12 @@ cybernaut.dsk: $(SOURCE) $(OBJ) _build/data.sym _build/mkdir
 	$(pyz80) -o $@ --importfile=_build/data.sym $<
 
 
-
+_build/AUTOcybe.O.gz: cybernaut.dsk
+	$(dskextract) -x AUTOcybe.O $<
+	gzip -9 _build/AUTOcybe.O
+	
+cybernaut-dist.dsk: src/selfextract.z80s _build/AUTOcybe.O.gz
+	$(pyz80) -o $@ $<
 
 _build/screenfunctions.sym: _build/screenfunctions.obj
 

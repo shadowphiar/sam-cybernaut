@@ -1,0 +1,144 @@
+; This file is part of project shadowphiar/sam-cybernaut on GitHub
+; Copyright 2016 Andrew Collier
+;
+;   Licensed under the Apache License, Version 2.0 (the "License");
+;   you may not use this file except in compliance with the License.
+;   You may obtain a copy of the License at
+;
+;       http://www.apache.org/licenses/LICENSE-2.0
+;
+;   Unless required by applicable law or agreed to in writing, software
+;   distributed under the License is distributed on an "AS IS" BASIS,
+;   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;   See the License for the specific language governing permissions and
+;   limitations under the License.
+
+
+; create a self-extracting gzip file for distribution on disk magazines where space is limited
+ 
+
+
+
+; locate the zip file as high up in memory as possible before the DOS (page 29)
+; copy working code into screen (execute in page 31, use page 30 as temporary data)
+; unpack the archive and jump to the result
+
+
+LMPR:           EQU 250
+HMPR:           EQU 251
+VMPR:           EQU 252
+BORDER:         EQU 254
+CLUT:           EQU 248
+LINE:           EQU 249
+STATUS:         EQU 249
+BORDERSCREENON: EQU 8
+BORDERSCREENOFF: EQU 136
+
+ALLOW_CODE_SIZE: equ 5000
+assert (CODE_SIZE < ALLOW_CODE_SIZE)
+
+packed_pages: equ (FILESIZE("_build/AUTOcybe.O.gz") + ALLOW_CODE_SIZE) / 16384
+packed_offset: equ (FILESIZE("_build/AUTOcybe.O.gz") + ALLOW_CODE_SIZE) \ 16384
+
+
+gzstart_page: equ 28 - packed_pages
+gzstart_offset: equ 16384 - packed_offset
+        
+            DUMP gzstart_page, gzstart_offset
+            org gzstart_offset
+        
+            MDAT "../_build/AUTOcybe.O.gz"
+
+            ORG 32768 + $\16384
+ 
+print "CODE_START",CODE_START
+print "gzstart_offset",gzstart_offset
+print "gzstart_page",gzstart_page
+
+
+
+CODE_START: equ $
+
+            AUTOEXEC
+
+            di
+            
+            ld a,BORDERSCREENOFF
+            out (border),a
+            
+            in a, (hmpr)
+            and 31
+            or 32
+            out (lmpr),a
+            jp lmem_origin
+            
+            org $-32768
+            
+lmem_origin:
+
+            ld a,30
+            out (hmpr),a
+            
+            ld hl, copied_code_dump
+            ld de, copied_code_origin
+            ld bc, copied_code_length
+            LDIR
+            
+            
+            
+            
+            
+            
+            
+            
+            jp copied_code_origin
+
+copied_code_dump:
+
+            org 49 * 1024
+copied_code_origin:
+            
+            ld sp,65535      
+
+    ; call samflate in section D with stack near top of memory
+    ; decode a block of gzip data starting at offset HL [of page C  *]
+    ;          writing the result starting at offset DE [of page B  *]
+
+            ld de,0
+            ld b,1
+            ld hl,gzstart_offset
+            ld c, gzstart_page
+
+            call inflate
+
+            in a,(hmpr)
+            and 31
+            or 32
+            out (lmpr),a
+            jp lmem_origin_2
+            org $-32768
+            
+lmem_origin_2:
+            
+            ;; execute the result 
+            ld a,1
+            out (hmpr),a
+            jp 32768
+
+            org $+32768
+
+            INCLUDE "../ext/samflatelib.z80s"
+
+copied_code_length: equ $-copied_code_origin
+            org copied_code_dump+copied_code_length
+                
+            org $+32768
+CODE_END:   equ $
+CODE_SIZE : equ CODE_END - CODE_START
+
+
+
+print "CODE_SIZE", CODE_SIZE
+
+
+
