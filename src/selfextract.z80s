@@ -34,8 +34,8 @@ STATUS:         EQU 249
 BORDERSCREENON: EQU 8
 BORDERSCREENOFF: EQU 136
 
-ALLOW_CODE_SIZE: equ 5000
-assert (CODE_SIZE < ALLOW_CODE_SIZE)
+ALLOW_CODE_SIZE: equ 4913
+assert (CODE_SIZE <= ALLOW_CODE_SIZE)
 
 packed_pages: equ (FILESIZE("_build/AUTOcybe.O.gz") + ALLOW_CODE_SIZE) / 16384
 packed_offset: equ (FILESIZE("_build/AUTOcybe.O.gz") + ALLOW_CODE_SIZE) \ 16384
@@ -76,6 +76,9 @@ CODE_START: equ $
             
 lmem_origin:
 
+            xor a
+            out (CLUT),a
+
             ld a,30
             out (hmpr),a
             
@@ -84,21 +87,106 @@ lmem_origin:
             ld bc, copied_code_length
             LDIR
             
+            ld a,31 + 32
+            out (vmpr),a
             
             
+            ld a,4
+            ld de,(192-4)*32 + 0x2000 + 0xc000
+@:          ld hl,attrtab
+            ld bc,32
+            ldir
+            dec a
+            jr nz, @
+
+            ld hl,0xc200
+            ld de,0xc201
+            ld bc,257
+            ld (hl),0xc3
+            ldir
             
+            ld a,188
+            out (line),a
             
+            ld a,0xc2
+            ld i,a
+            im 2
             
+            ld sp,65535      
+            ei
             
-            
-            jp copied_code_origin
+            jp copied_code_call_samflate
+
+attrtab:    db 0x09, 0x12, 0x1b, 0x24, 0x2d, 0x36, 0x3f, 0x40, 0x49, 0x52, 0x5b, 0x64
+            db 0x09, 0x12, 0x1b, 0x24, 0x2d, 0x36, 0x3f, 0x40, 0x49, 0x52, 0x5b, 0x64
+            db 0x09, 0x12, 0x1b, 0x24, 0x2d, 0x36, 0x3f, 0x40
+
 
 copied_code_dump:
 
-            org 49 * 1024
+            org 0xc3c3
 copied_code_origin:
+
+
+
+
             
-            ld sp,65535      
+interrupt_routine:                
+            ex af,af'
+        
+            ld a,0x08
+            out (border),a
+        
+            ld a,31 + 32
+            out (vmpr),a        ; turn on the screen - we need to do this much quicker than turning it off..
+        
+            in a,(STATUS)
+            rra
+            jp c, frameinterrupt
+        
+            ex af,af'
+            ei 
+            reti
+
+
+frameinterrupt:    
+            
+            ld a,30 + 96    
+            out (vmpr),a
+        
+            ld a,0x88
+            out (border),a
+        
+            push hl
+            push bc
+        
+            ld hl,paltab
+            ld bc,16*256 + CLUT
+        
+            exx
+            ld a,h  ; *usually* the position in the compressed file. But we may be in the alternate set anyway,
+                    ; so randomly this will be a completely different value. Fortunately we use this only for a
+                    ; visual effect of general progress, and nothing at all important depends on the value.
+            exx
+            and 15
+            add l
+            ld l,a
+        
+            for 15, outi
+        
+            pop bc
+            pop hl
+            ex af,af'
+            ei 
+            reti
+
+
+ds align 32
+paltab:     db 0x03, 0x0b, 0x34, 0x3c, 0x73, 0x7b, 0x7f, 0x7b, 0x73, 0x3c, 0x34, 0x0b
+            db 0x03, 0x0b, 0x34, 0x3c, 0x73, 0x7b, 0x7f, 0x7b, 0x73, 0x3c, 0x34, 0x0b
+            db 0x03, 0x0b, 0x34, 0x3c, 0x73, 0x7b, 0x7f, 0x7b 
+            
+copied_code_call_samflate:            
 
     ; call samflate in section D with stack near top of memory
     ; decode a block of gzip data starting at offset HL [of page C  *]
@@ -119,6 +207,7 @@ copied_code_origin:
             org $-32768
             
 lmem_origin_2:
+            di
             
             ;; execute the result 
             ld a,1
