@@ -61,7 +61,7 @@ cybernaut.dsk: $(SOURCE) $(OBJ) _build/data.sym _build/mkdir
 
 _build/AUTOcybe.O.gz: cybernaut.dsk
 	$(dskextract) -x AUTOcybe.O $<
-	gzip -9 _build/AUTOcybe.O
+	gzip -f -9 _build/AUTOcybe.O
 	
 cybernaut-dist.dsk: src/selfextract.z80s _build/AUTOcybe.O.gz
 	$(pyz80) -o $@ $<
