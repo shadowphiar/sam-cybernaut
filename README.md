@@ -4,4 +4,4 @@ Cybernaut is an arcade game written for the retro Sam Coupé computer. The graph
 
 You will need a copy of pyz80 to assemble the source files. Also you will need a python interpreter with the PIL (imaging library) installed.
 
-The output of the build is a disk image which can be loaded in SimCoupe or transferred onto floppy disk for loading or real hardware.
+The output of the build is a disk image which can be loaded in SimCoupe or transferred onto floppy disk for loading on real hardware.
