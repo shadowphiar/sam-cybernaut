@@ -465,73 +465,75 @@ PROJECTILE_OBJECT_FRAME:
 				ld h,(IY + OBJECT.H)
 				INC IYh
 				
-				ld a,(IY + PROJECTILE_OBJECT.Xl)
-				add (IY + PROJECTILE_OBJECT.XSPEEDl)
+				ld a,(IY + PROJECTILE_OBJECT.Xl)		; minor X coordinate
+				add (IY + PROJECTILE_OBJECT.XSPEEDl)	
 				ld (IY + PROJECTILE_OBJECT.Xl),a
 				
-				ld a,e
-				ld b, (IY + PROJECTILE_OBJECT.XSPEED)
-				adc b
-				bit 7,b
-				jr z, @
-				ccf
-	@:			jp c,@remove
-				ld e,a
+				ld a,e									; major X coordinate
+				ld b, (IY + PROJECTILE_OBJECT.XSPEED)	
+				adc b									; carry is set if +ve motion wraps around, or if -ve motion doesn't
+				bit 7,b									; sign of x speed
+				jr z, @									; jump if speed is +ve
+				ccf										; motion is -ve. Carry is now set if the x coordinate wrapped around in either direction
+	@:			jp c,@remove							; remove the sprite if the left coordinate wrapped
+				ld e,a									; new major x coordinate
+				dec a
+				add l									; add object width - 1 to get x coordinate at the right hand side
+				jp c,@remove							; remove the sprite if the right coordinate wrapped
 
-
-				ld a,(IY + PROJECTILE_OBJECT.Yl)
+				ld a,(IY + PROJECTILE_OBJECT.Yl)		; minor y coordinate
 				add (IY + PROJECTILE_OBJECT.YSPEEDl)
-				ld (IY + PROJECTILE_OBJECT.Yl),a
+				ld (IY + PROJECTILE_OBJECT.Yl),a		
 				
-				ld a,d
-				ld b, (IY + PROJECTILE_OBJECT.YSPEED)
-				adc b
-				bit 7,b
+				ld a,d									; major y coordinate
+				ld b, (IY + PROJECTILE_OBJECT.YSPEED)	
+				adc b									; carry is set if +ve motion wraps around, or if -ve motion doesn't
+				bit 7,b									
 				jr z, @
-				ccf
+				ccf										; motion is -ve. Carry is now set if the y coordinate wrapped around in either direction
 	@:			jp c,@remove
 				ld d,a
+
+				add h									; add object height to get y coordinate just below bottom of sprite - i.e. 176 is OK
+				cp 177									; compare with one pixel below bottom of usable screen
+				jp nc,@remove							; remove the sprite if the bottom coordinate went over bottom of usable screen
+
 
 			; calculated new position in d/e, now check for collision with static geometry
 			; h/l are still height/width
 			
 				; trace along the top/bottom edge
-				ld a,e
-				rra
-				rra
-				rra
-				rra
-				and 0x0f
-				ld b,a
+				ld a,e		; x co-ord
+				FOR 4, rra	; divide by 16		
+				and 0x0f	
+				ld b,a		; x grid lookup
 				
-				ld a,d
+				ld a,d		; y co-ord
 				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
-				jr nz,@top
-				add h
-				dec a
-		@top:	and 0xf0
-				or b
-				ld c,a
+				jr nz,@top	; jump if y speed sign is -ve
+				add h		; movement is downwards. Add object height
+				dec a		; get y position of inner bottom edge
+		@top:	and 0xf0	; granulate to 16
+				or b        ; x and y grid lookup
+				ld c,a		; grid lookup low byte address
 				
-				ld a,e
-				add l
-				rra
-				rra
-				rra
-				rra
-				and 0x0f
-				sub b
+				ld a,e		; x-coordinate
+				add l		; add object width
+				dec a 		; coordinate of inner right hand side
+				FOR 4, rra	; divide by 16		
+				and 0x0f	; x grid and right hand side
+				sub b		; difference in number of grid squares between left and right
 				ld l,a
 				
-				inc l
+				inc l		; number of grid squares covered horizontally
 				ld b, BLOCK_COLLISION_TABLE/256
 		@loop:		
 				ld a,(bc)
 				and TILE_COLLIDES
 				jr nz, @remove
 
-				inc c
-				dec l
+				inc c		; next grid along
+				dec l		; see if there are more to check on this row
 				jr nz, @loop				
 
 
@@ -541,69 +543,52 @@ PROJECTILE_OBJECT_FRAME:
 				; find number of covered tiles in height. If >1, check the remaining part of edge
 				; (if going up, add one to height)
 
-				ld a,d
-				add h
-				dec a
-				and 0xf0
-				cp d
-				jr c, completed_projectile_collision_check
+				ld a,d		; major y coordinate
+				add h		; add height
+				dec a		; internal y coordinate at bottom of object
+				and 0xf0	; granulate to 16
+				ld h,a	
+				ld a,d		; major y coordinate
+				and 0xf0    ; granulate to 16
+				sub h		; same as grid at bottom?
+
 				jr z, completed_projectile_collision_check
+							; a contains 16x the difference between grid coordinates as top minus bottom
+				cpl			; bottom minus top						
+				for 4, rra
+				and 0x0f
+				ld l,a		; number of additional grid squares we need to check
 
-				ld h,a
-				ld a,d
-				and 0xf0
-				neg
-				add h
-				and 0xf0
-				rra
-				rra
-				rra
-				rra
-				ld h,a	; number of additional squares we need to check
 
-print "bullet across horizontal boundary",$
 
-				
-				; c points to the right side (at either top or bottom - so recalculate top)
-
-				ld a,c
+				ld a,c			; c was incremented once past the grid at the (bottom or top) right hand side of the sprite
+				dec a			
 
 				; if going left, move c to the left side
 
 				bit 7, (IY + PROJECTILE_OBJECT.XSPEED)
 				jr z, @r
-				and 0xf0
-				ld c,a
-				ld a,e
-				rra
-				rra
-				rra
-				rra
-				and 0x0f
-				or c
+
+				ld a,e		; x-coordinate
+				FOR 4,rra
 		@r:
-				and 0x0f
-				ld c,a
+				and 0x0f	; grid for left/right hand side, ignore y corrdinate
+				or h		; add gride for y coordinate at bottom
 
-				ld a,d
-				and 0xf0
-				or c
-				bit 7, (IY + PROJECTILE_OBJECT.YSPEED)
-				jr nz,@t
-				add 0x10
-		@t:		ld c,a
-
-				
+				ld c,a		; grid lookup low byte address for bottom left/right
 				ld b, BLOCK_COLLISION_TABLE/256
+
+				inc l		; total number of vertical squares to be checked (including one we already have, but it's easier just to check again than to attempt to skip it)
+
 		@loop:		
 				ld a,(bc)
 				and TILE_COLLIDES
 				jr nz, @remove
 
 				ld a,c
-				add 0x10
-				ld c,a
-				dec h
+				sub 0x10	; walk up the grid side from bottom to top
+				ld c,a		
+				dec l
 				jr nz, @loop				
 
 
@@ -1653,22 +1638,25 @@ not_blocked_vertical:
 		
 		
 
-				ld a,(IX + PLAYER.x)
-				add SHIP_WIDTH - lasershot.png_0.WIDTH
-				ld l,a
+
 				ld a,(IX + PLAYER.y)
 				add SHIP_HEIGHT - lasershot.png_0.HEIGHT
-			
 				ld h,a
 			
-			
+				ld a,(IX + PLAYER.x)
 				
 				
-				ld de, LASER_TEMPLATE_R
-				bit 7,(IX + PLAYER.xspeedh)
-				jr z,@
+				
 				ld de, LASER_TEMPLATE_L
-@:				ld a, OBJECTS_GROUP1/256
+				bit 7,(IX + PLAYER.xspeedh)
+				jr nz,@
+				ld de, LASER_TEMPLATE_R
+				add SHIP_WIDTH - lasershot.png_0.WIDTH
+@:				
+				ld l,a			
+
+
+				ld a, OBJECTS_GROUP1/256
 				call ADD_OBJECT
 
 				ld hl, sfx_shoot
