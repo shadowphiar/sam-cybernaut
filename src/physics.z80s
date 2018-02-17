@@ -42,6 +42,9 @@ print "BEGIN_SCREEN", $
 				ld a,BORDERSCREENON ; OFF
 				out (border),a
 
+				ld a,SCREENPAGE0
+				out (HMPR),a		; page in any screen which contains our interrupt handler
+
 				ei
 					
 				

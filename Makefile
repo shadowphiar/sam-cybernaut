@@ -54,10 +54,12 @@ DATA = _build/menu.png.samscreen.mdat.gz \
 	_build/rockets.png_3_1.sprite.z80s \
 	_build/shots.png_11.sprite.z80s
 
+cybernaut.map: cybernaut.dsk
+
 cybernaut.dsk: $(SOURCE) $(OBJ) _build/data.sym _build/mkdir
 	date +%Y-%m-%d > _build/version
 	echo "(`git rev-parse --short HEAD`)" >> _build/version
-	$(pyz80) -o $@ --importfile=_build/data.sym $<
+	$(pyz80) -o $@ --importfile=_build/data.sym --mapfile=cybernaut.map $<
 
 
 _build/AUTOcybe.O.gz: cybernaut.dsk
