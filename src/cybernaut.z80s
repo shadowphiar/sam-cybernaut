@@ -883,6 +883,7 @@ draw_string_IXstore: equ $+2
                 INCLUDE "physics.z80s"
                 INCLUDE "config.z80s"
                 INCLUDE "mainmenu.z80s"
+                INCLUDE "util.z80s"
 
 game_palette:   db     0,7,15,120,127,10,34,44,106,5,13,88,75,12,4,25
 

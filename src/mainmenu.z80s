@@ -189,6 +189,7 @@ done_menu_text_update:
 				
 				ret
 
+short_text:			db "b"
 very_short_text:	db "b",0
 
 
@@ -252,6 +253,40 @@ drawpaneloutlines_rtn:
 				djnz drawpaneloutlines_loop
 
 
+				ld hl, 32768 + 182*128 + 2
+				ld IY, ship_text
+
+				call DRAW_STRING
+
+				ld IY, very_short_text
+				ld a,5
+				add "0"
+				ld (IY),a
+
+
+				ld hl, 32768 + 182*128 + 10
+				call DRAW_STRING
+
+				ld hl, 32768 + 182*128 + 18
+				ld IY, gem_text
+				call DRAW_STRING
+
+
+				ld hl, 32768 + 182*128 + 38
+				ld IY, gem_score
+
+				call DRAW_NUMBER_R
+
+
+				ld iy, weapon_text
+				ld hl, 32768 + 182*128 + 42
+				call DRAW_STRING
+
+				ld hl, 32768 + 182*128 + 122
+				ld IY, main_score
+
+				call DRAW_NUMBER_R
+
 				ld bc,16
 				ld hl, game_palette
 				ld de,32768+24576
@@ -260,7 +295,7 @@ drawpaneloutlines_rtn:
 				ld a,(DISPLAYSCREEN)
 				add 2
 				cp SCREENPAGE0+96+6
-				jr c, setup_game_screens_loop
+				jp c, setup_game_screens_loop
 
                 LD   A,SCREENPAGESPECIAL
                 out (HMPR),a
@@ -282,9 +317,13 @@ panel_layout:
 				dw DRAWtiles.png_0_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_2_11
 				dw DRAWtiles.png_0_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_1_11,DRAWtiles.png_2_11
 
+ship_text:		dm "[\",0
+gem_text:		dm "]",0
 
+weapon_text:	dm "MISSILES",0
 
-
+gem_score:		db 1,0,0,255
+main_score:		db 0,0,0,0,0,255
 				   ;1234567890123456
 MENU_TEXT_ROLLING:
 				dm "FIRE to start",10

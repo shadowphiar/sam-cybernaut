@@ -1,0 +1,189 @@
+     
+; hl=screen address of right margin
+; IY=binary-coded decimal, little endian, 255-terminated
+
+DRAW_NUMBER_R:
+
+print "DRAW_NUMBER_R",$
+
+                ld bc,@buffer+15
+                
+                xor a
+                ld e,a
+                ld d,a
+                
+                ld (bc),a
+;                dec bc
+                
+                ld (@buffer_leading_start),bc
+
+@parse:         ld a,(IY)
+                cp 255
+                jr z,@print
+
+                inc e
+                dec bc
+
+
+                and 15
+                jr z, @1
+
+                ld d,e
+                ld (@buffer_leading_start),bc
+
+@1:
+                add 48
+                ld (bc),a
+ 
+ 
+                inc e
+                dec bc
+ 
+                ld a,(iy)
+                and 0xf0
+                jr z,@2
+
+                ld d,e
+                ld (@buffer_leading_start),bc
+
+                rra
+                rra
+                rra
+                rra
+@2:
+                add 48
+                ld (bc),a
+                
+                inc iy
+                jr @parse
+                
+@print:         
+
+
+@buffer_leading_start: equ $+2
+                ld iy,@buffer
+
+                ld a,d
+                add a,a
+                jr z, @draw_a_zero
+                add a,a
+                neg
+                add l
+                ld l,a
+
+                JP DRAW_STRING
+                ; which RETurns to our caller
+
+@draw_a_zero:
+                ld iy,@buffer+14 ; this shouldn't be necessary
+                ;  something is sufficiently broken as to cause the program to crash if this is buffer+14 (as it should be for a single digit zero
+                ld a,l
+                sub 4
+                ld l,a
+                JP DRAW_STRING
+
+
+
+
+
+ADD_NUMBER:         ; add the value _in_ DE to the score _pointed to by_ HL
+                    ; both are BCD values, (HL) contains at least two valid bytes and will be extended as necessary
+
+                ld a,(hl)
+                add e
+                daa
+                ld (hl),a
+                inc hl
+                ld a,(hl)
+                adc d
+                daa
+                ld (hl),a
+                ret nc
+add_loop:       inc hl
+                ld a,(hl)
+                cp 255 
+                jr nz,@+
+                inc hl
+                ld (hl),255
+                dec hl
+                xor a
+@:              add 1
+                daa
+                ld (hl),a
+                jr c, add_loop
+                ret
+                
+COMPARE_NUMBERS: ; IX cp HL
+				 ; compare the (LE, BCD, 255 terminated) numbers pointed to by IX and HL
+				 ; result in flags: Z = they are equal, otherwise C = HL is greater
+				 ; uses d,e,a,HL,IX   does not change BC, IY
+				
+				ld e,1
+			; put result in e such that
+				; ld a,1
+				; cp e
+			; 1 -> Z
+			; 0 -> NZ, NC
+			; 2 -> NZ, C
+				
+@cmp_loop:		ld a,(HL)
+				cp 255
+				jr z, @cmp_found_end_hl
+				ld d,a
+
+				ld a,(ix)
+				cp 255
+				jr z, @cmp_found_end_ix
+				cp d
+				
+				; if unequal, overall result can depend on this byte
+				; if equal, overall result is the same as previously (starts as Z)
+
+				jr z, @cmp_next_byte
+
+				ld a,0
+				adc a
+				add a
+				ld e,a
+
+@cmp_next_byte:	
+				inc hl
+				inc ix
+				jr @cmp_loop
+
+				
+@cmp_found_end_hl:
+				; if IX contains more non-zero bytes before the end marker, it's greater.
+				; if IX contains all zeros or the end marker, then the true result is determined by previous bytes (in e)
+				 
+				ld a,(IX+0)
+				cp 255
+				jr z, @cmp_result
+				or a
+				jr nz, @cmp_ix_is_greater
+				inc ix
+				jr @cmp_found_end_hl
+
+@cmp_found_end_ix:
+				; if hl contains more non-zero bytes before the end marker, it's greater.
+				; if hl contains all zeros or the end marker, then the true result is determined by previous bytes (in e)
+				 
+				ld a,(hl)
+				cp 255
+				jr z, @cmp_result
+				or a
+				jr nz, @cmp_hl_is_greater
+				inc hl
+				jr @cmp_found_end_ix
+
+@cmp_hl_is_greater:
+				ld e,2 ; nz, c
+				jr @cmp_result
+@cmp_ix_is_greater:
+				ld e,0 ; nz, nc
+@cmp_result:
+				ld a,1
+				cp e
+				ret
+
+@buffer: ds 16
