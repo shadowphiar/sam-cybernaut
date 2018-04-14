@@ -39,7 +39,7 @@ print "BEGIN_SCREEN", $
 				ld (FRAMEVECTOR),de
 
 
-				ld a,BORDERSCREENON ; OFF
+				ld a,BORDERSCREENOFF
 				out (border),a
 
 				ld a,SCREENPAGE0

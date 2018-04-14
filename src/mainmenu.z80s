@@ -282,7 +282,13 @@ drawpaneloutlines_rtn:
 				ld hl, 32768 + 182*128 + 42
 				call DRAW_STRING
 
-				ld hl, 32768 + 182*128 + 122
+				ld hl, 32768 + 182*128 + 86
+				ld IY, weapon_number
+
+				call DRAW_NUMBER_R
+
+
+				ld hl, 32768 + 182*128 + 126
 				ld IY, main_score
 
 				call DRAW_NUMBER_R
@@ -322,7 +328,9 @@ gem_text:		dm "]",0
 
 weapon_text:	dm "MISSILES",0
 
-gem_score:		db 1,0,0,255
+weapon_number:	db 0x99,255
+
+gem_score:		db 00,0x15,0,255
 main_score:		db 0,0,0,0,0,255
 				   ;1234567890123456
 MENU_TEXT_ROLLING:
